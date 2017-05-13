@@ -1,0 +1,965 @@
+{% extends "traffic/base_congestion_online.html" %} {% load staticfiles %} {% block title %} MDAP - Traffic Congestion Online {% endblock %} {% block style %}
+<link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+<link rel="stylesheet" type="text/css" href="{% static 'traffic/leaflet.timedimension.control.css'%}">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/7.1.0/css/bootstrap-slider.min.css" />
+<link rel="stylesheet" href="{% static 'traffic/jquery-ui/jquery-ui.css' %}">
+
+<style>
+    #updatetextbox {
+        background: #ffffff;
+        border: 2px solid;
+        border-color: #3f51b5;
+        height: 130px;
+        overflow: auto;
+    }
+
+
+    .table>tbody>tr>th {
+        padding: 2px;
+    }
+
+    .slider-track-low {
+        background: green;
+    }
+
+    .slider-selection {
+        background: yellow;
+    }
+
+    .slider-track-high {
+        background: red;
+    }
+
+</style>
+{% endblock %} {% block content %}
+
+<div id="user_input" class="well" style="height: 100%;overflow:auto;">
+    <div class="container" style="width: inherit">
+        <div class="row" id="title" style="margin-top:0px;text-align: center">
+            <h3>Link Parameter Updates</h3></div>
+        <div align="left" class="row" id="updatetextbox"></div>
+    </div>
+    <br>
+    <div class="form-group row">
+        <button type="button" class="btn btn-primary btn-lg btn-block" id="formSubmit">Submit</button>
+    </div>
+    <div>
+        <h4><center>Legend Threshold</center></h4>
+    </div>
+    <div id="sliderText" style="text-align: center"></div>
+    <div id="slider"></div>
+
+    <div class="form-group row">
+        <div class="col-sm-9" style="padding:0">
+            <button type="button" class="btn btn-primary btn-lg btn-block" id="changeThreshold">Change Threshold</button>
+        </div>
+        <div class="col-sm-3" style="padding:0">
+            <button type="button" class="btn btn-primary btn-lg btn-block btn-info" id="defaultThreshold">Default</button>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %} {% block map %}
+<div id="map"></div>
+{% endblock %} {% block script %}
+
+
+<script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/leaflet.timedimension.src.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/iso8601.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/spin.min.js' %}"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/7.1.0/bootstrap-slider.min.js"></script>
+<script type="text/javascript" src="{% static 'traffic/jquery-ui/jquery-ui.js' %}"></script>
+
+<!-- <script type="text/javascript" src="{% static 'traffic/links.js' %}"></script> -->
+
+<script>
+// console.log("links downloaded");
+// var tileIndex = geojsonvt(links);
+// console.log("links tiled");
+
+// function drawingOnCanvas(canvasOverlay, params) {
+
+//     var bounds = params.bounds;
+//     params.tilePoint.z = params.zoom;
+
+//     var ctx = params.canvas.getContext('2d');
+//     ctx.globalCompositeOperation = 'source-over';
+
+
+//     console.log('getting tile z' + params.tilePoint.z + '-' + params.tilePoint.x + '-' + params.tilePoint.y);
+
+//     var tile = tileIndex.getTile(params.tilePoint.z, params.tilePoint.x, params.tilePoint.y);
+//     if (!tile) {
+//         console.log('tile empty');
+//         return;
+//     }
+
+//     ctx.clearRect(0, 0, params.canvas.width, params.canvas.height);
+
+//     var features = tile.features;
+
+//     ctx.strokeStyle = 'grey';
+
+
+//     for (var i = 0; i < features.length; i++) {
+//         var feature = features[i],
+//         type = feature.type;
+
+//         ctx.fillStyle = feature.tags.color ? feature.tags.color : 'rgba(255,0,0,0.05)';
+//         ctx.beginPath();
+
+//         for (var j = 0; j < feature.geometry.length; j++) {
+//             var geom = feature.geometry[j];
+
+//             if (type === 1) {
+//                 ctx.arc(geom[0] * ratio + pad, geom[1] * ratio + pad, 2, 0, 2 * Math.PI, false);
+//                 continue;
+//             }
+
+//             for (var k = 0; k < geom.length; k++) {
+//                 var p = geom[k];
+//                 var extent = 4096;
+
+//                 var x = p[0] / extent * 256;
+//                 var y = p[1] / extent * 256;
+//                 if (k) ctx.lineTo(x  + pad, y   + pad);
+//                 else ctx.moveTo(x  + pad, y  + pad);
+//             }
+//         }
+
+//         if (type === 3 || type === 1) ctx.fill('evenodd');
+//         ctx.stroke();
+//     }
+
+// }
+
+    var loaded_link_ids = [];
+
+
+    function massageLinkLayer(data) {
+        let d =  {
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "EPSG:4326"
+                }
+            },
+            "type": "FeatureCollection",
+            "features": []
+        }
+        for (let i = 0; i < data.length; i++) {
+            d.features[i] = JSON.parse(data[i].fields.geom_str)[0];
+        }
+        return d;
+    }
+
+    var stagingZoomLevels = [15, 13, 0];
+    // var stagingZoomLevels = [0];
+    var speedWithZoomPhilly = [-1,
+        26,
+        31,
+        35,
+        41
+    ]
+    var numlanesWithZoomPhilly = [1, 2, 3]
+
+    // This helper function gets the staging zoom level based on the current zoom level.
+    function getZoomLevel(zoom) {
+        for (var i = 0; i < stagingZoomLevels.length; i++) {
+            if (zoom >= stagingZoomLevels[i]) {
+                return stagingZoomLevels[i]
+            }
+        }
+    }
+
+    // This helper function gets the block size based on the current staging zoom level
+    function getBlockSize(zoom) {
+        var zoomLevel = getZoomLevel(zoom)
+        // let xzoom = .005 * Math.pow(2, 17-zoom);
+        // let yzoom = .003 * Math.pow(2, 17-zoom);
+        // return [xzoom, yzoom];
+        if (zoomLevel == stagingZoomLevels[0]) return [0.017, 0.011]
+        if (zoomLevel == stagingZoomLevels[1]) return [0.017, 0.011]
+        if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
+    }
+
+    // This helper function gets the "hash value" which is used as the key of a dictionary,
+    // where cached link values are stored
+    function hashLatLng(a, b, zoom) {
+        str = "" + Math.round(a * 1e6) / 1e6 + "|" + Math.round(b * 1e6) / 1e6 + "|" + getZoomLevel(zoom)
+        return str
+    }
+
+    // This helper function read a digit ranging from 0 to 1,
+    // returns the hex color between green and red
+    function getColor(value) {
+        //value from 0 to 1
+        // var hue = ((1 - value) * 120).toString(10);
+        // return ["hsl(", hue, ",100%,50%)"].join("");
+        if (value < threshold1) {
+            return "green"
+        } else if (value < threshold2) {
+            return "yellow"
+        } else if (value < threshold3) {
+            return "orange"
+        } else {
+            return "red"
+        }
+    }
+
+    var threshold1 = 0.3
+    var threshold2 = 0.50
+    var threshold3 = 0.7
+
+    var start_time = null;
+    // interval_request_count records the number of request sent for the values of link
+    // at a specific interval, so there's no duplicate requests
+    var interval_request_count = Array(200)
+    // link_values stores the cached values of links
+    var link_values = {}
+    for (var i = 0; i < 200; i++)
+        interval_request_count[i] = 0
+    clean_cache = function() {
+        link_values = {}
+        for (var i = 0; i < 200; i++)
+            interval_request_count[i] = 0
+    }
+
+    // LinkTimeLayer is a class which inherit TimeDimension.Layer, it's used
+    // with the plugin Leaflet.TimeDimension that renders animation; read more on
+    // https://github.com/socib/Leaflet.TimeDimension
+    var LinkTimeLayer = L.TimeDimension.Layer.extend({
+
+        initialize: function(layer) {
+            L.TimeDimension.Layer.prototype.initialize.call(this, layer, this.options);
+        },
+
+        _onNewTimeLoading: function(ev) {
+
+            var index = (ev.time.getTime() - start_time.getTime()) / 30000
+
+            // Clear the cache when animation starts to loop from the beginning,
+            // because map may have moved and cached data becomes irrelevant
+            if (map.timeDimension.getCurrentTimeIndex() == 0) {
+                clean_cache()
+              }
+            if (link_values[index] != null) {
+                // This interval is cached
+                return
+            } else if (interval_request_count[index] >= 1) {
+                // Waiting for request
+                return
+            }
+
+
+            // Collect the link ids in the current scope of map
+            let link_ids = loaded_link_ids;
+            // linksLayerGroup.eachLayer(function(layer) {
+            //     for (var i in layer.getLayers())
+            //         link_ids.push(layer.getLayers()[i].feature.properties.no)
+            // })
+            if (link_ids.length == 0) return
+
+            // Length of the consecutive intervals to request.
+            length_per_request = 3
+
+            for (var i = 0; i < length_per_request; i++)
+                interval_request_count[index + i]++
+
+
+
+            get_online_congestion = function(index) {
+                $.post("../get_online_congestion/", {
+                        start_time: start_time.toString().split('(')[0],
+                        index: index,
+                        link_id: link_ids,
+                        length: length_per_request,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    },
+                    function(data, textStatus) {
+                        for (var offset = 0; offset < data.length; offset++) {
+                            key = index + offset
+                            link_values[key] = data[offset]
+                        }
+
+                    }
+                )
+            }
+            get_online_congestion(index)
+        },
+
+        isReady: function(time) {
+            if (start_time == null) return false
+
+            index = (time.getTime() - start_time.getTime()) / 30000
+
+            if (link_values[index] != null) {
+                return true
+            } else {
+                return false
+            }
+        },
+
+        _update: function() {
+            if (!this.isReady(map.timeDimension.getCurrentTime())) return;
+            linksLayerGroup.eachLayer(function(layer) {
+                for (let id of layer.link_ids) {
+                    var index = map.timeDimension.getCurrentTimeIndex()
+                    var values = link_values[index]
+                    if (values[id]) {
+                        layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    }
+                   
+
+                }
+            });
+            console.log("colors updated");
+        }
+    });
+
+    // TimeDimensionCustom is a class which extend L.Control.TimeDimension,
+    // it clears the cache when user click on slider. If user click back in time
+    // and cache is not cleared, and map has been moved, it will be blank at
+    // some links
+    L.Control.TimeDimensionCustom = L.Control.TimeDimension.extend({
+        _superSliderTimeValueChanged: L.Control.TimeDimension.prototype._sliderTimeValueChanged,
+        _sliderTimeValueChanged: function(value) {
+            this._superSliderTimeValueChanged(value);
+            clean_cache()
+            linksLayerGroup.eachLayer(function(layer) {
+                layer.setFeatureStyle(function(feature) {
+                    return {
+                        color: "#d3d3d3"
+                    }
+                })
+            })
+        }
+    });
+
+
+    // add an OpenStreetMap tile layer
+    var streetsL = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    });
+    var grayscale = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+    });
+
+
+    var map = L.map('map', {
+        center: [39.9526, -75.1652],
+        zoom: 16,
+        layers: [grayscale],
+        // layers: [streetsL],
+        timeDimension: true,
+        timeDimensionOptions: {
+            loadingTimeout: 2000,
+        },
+        zoomDelta: 0.25,
+    });
+
+
+    var controller = new L.Control.TimeDimensionCustom({
+        playerOptions: {
+            loop: true,
+            buffer: 3
+        },
+        maxSpeed: 3,
+        minSpeed: 1
+    })
+    var playStatus = false;
+    map.addControl(controller);
+    controller._player.on("play", function() {
+        playStatus = true
+    })
+    controller._player.on("stop", function() {
+        playStatus = false
+    })
+
+    var legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend')
+        div.innerHTML +=
+            '<i style="background:' + "green" + '"></i> ' +
+            0 +  '&ndash;' + threshold1 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "yellow" + '"></i> ' +
+            threshold1 +  '&ndash;' + threshold2 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "orange" + '"></i> ' +
+            threshold2 +  '&ndash;' + threshold3 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "red" + '"></i> ' +
+            threshold3 +  '&ndash;' + 1 + '<br>';
+        return div;
+    };
+    legend.addTo(map);
+    updateLegend = function() {
+        legend._container.innerHTML = ""
+        legend._container.innerHTML +=
+            '<i style="background:' + "green" + '"></i> ' +
+            0 +  '&ndash;' + threshold1 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "yellow" + '"></i> ' +
+            threshold1 +  '&ndash;' + threshold2 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "orange" + '"></i> ' +
+            threshold2 +  '&ndash;' + threshold3 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "red" + '"></i> ' +
+            threshold3 +  '&ndash;' + 1 + '<br>';
+    }
+
+    var baseMaps = {
+        "Grayscale": grayscale,
+        "Streets": streetsL
+    };
+
+    var control = L.control.layers(baseMaps, null, {
+        collapsed: false
+    }).addTo(map);
+
+    function onClickLink(event) {
+        console.log(event);
+        popup = "";
+        popup += "Full Name: " + feature.properties.full_name + "\n";
+        popup += "Type: " + feature.properties.st_type + "\n";
+        popup += "Speed: " + feature.properties.speed + "\n";
+        var container = $('<div />');
+
+        var substitute_word = {
+            "no": "Road Segment ID",
+            "v0prt": "Free Flow Speed",
+            "tsysset": "Vehicle Types",
+            "numlanes": "Number of Lanes",
+            "county_10": "County",
+            "hwy_num": "Highway name",
+            "cap_1h": "Lane Capacity",
+            "length": "Road Length",
+            "direction": "direction"
+        }
+        container.html("<h3>Link Info Update</h3><br>");
+        var table = $("<table/>", {"class": "table table-striped"})
+        container.append(table)
+        for (key in feature.properties) {
+            table.append($("<tr>").html("<th>" + substitute_word[key] + "</th>" + "<th>" + feature.properties[key]+"</th>"))
+        }
+        container.append("Capacity Drop(%): (0 means free flow)<br>")
+        var slider = $("<div/>", {
+            class: "popup-slider"
+        })
+
+        container.append(slider)
+        slider.slider({
+            min: 0,
+            max: 100,
+            step: 5,
+            value: 0
+        })
+        container.append("<br><button id = 'btnSubmit' type = 'submit' class = 'btn btn-default'>Submit</button>");
+
+        container.on('click', '#btnSubmit', function() {
+            if (container.find('input[name=congestion_options]:checked').val() != 0 ||
+                container.find('input[name=accident_options]:checked').val() != 0)
+                updateSingleLinkInfo(feature.properties.no,
+                    slider.slider("option", "value"))
+            map.closePopup()
+        });
+
+        updateSingleLinkInfo = function(id, drop) {
+            for (var i = 0; i < linkInfoUpdates.length; i++) {
+                if (linkInfoUpdates[i].id == id) {
+                    linkInfoUpdates.splice(i, 1);
+                    break;
+                }
+            }
+            linkInfoUpdates.push({
+                "id": id,
+                "drop": drop
+            })
+            displayLinkInfoUpdates();
+        };
+        console.log(container);
+        L.popup()
+            .setContent(container[0])
+            .setLatLng(event.latlng)
+            .openOn(map);
+        L.DomEvent.stop(event);
+        // event.layer.bindPopup(container[0], {"keepInView": true});
+    }
+
+    var linksLayersCache = {}
+    var linksLayerGroup = L.featureGroup();
+    // map.on("click", () => { console.log ("map clicked")})
+
+    linksTimeLayer = new LinkTimeLayer(linksLayerGroup);
+
+
+    linksLayerGroup.addTo(map);
+
+
+
+    var newestRequestTime = new Date();
+    var linkInfoUpdates = [];
+
+
+    // This functino shift links according to their direction, so that
+    // the links of double-way roads are separated
+    shift_features_for_two_ways = function(data, zoomLevel) {
+        coordinate_shift = 1 / 5e4 * (19 - zoomLevel)
+        d = {'features': [], 'type': "FeatureCollection"};
+        d.crs = data.crs;
+        for (let j = 0; j < data.features.length; j++) {
+            feature = data.features[j]
+            if (feature.properties.direction == 1) {
+                // Forward direction
+                shift_sign = 1
+            } else if (feature.properties.direction == -1) {
+                // Backward
+                shift_sign = -1
+            } else {
+                // Single lane
+                shift_sign = 0
+            }
+            link_coord_length = feature.geometry.coordinates.length
+            if (Math.abs(feature.geometry.coordinates[0][0] - feature.geometry.coordinates[link_coord_length - 1][0]) >
+                Math.abs(feature.geometry.coordinates[0][1] - feature.geometry.coordinates[link_coord_length - 1][1])) {
+                // Horizontal Link, shift in the vertical direction
+                for (i in feature.geometry.coordinates) {
+                    feature.geometry.coordinates[i][1] += shift_sign * coordinate_shift
+                }
+            } else {
+                // Vertical Link, shift in horizontal direction
+                for (let i in feature.geometry.coordinates) {
+                    feature.geometry.coordinates[i][0] += shift_sign * coordinate_shift
+                }
+            }
+            d.features[j] = {
+                "geometry": feature.geometry, 
+                "type": "Feature", 
+                "properties": {"no": feature.properties.no}}
+        }
+        return d
+    }
+
+    function getBounds() {
+        let bounds = map.getBounds();
+        // let south = Math.max(bounds.getSouth(), 39.914241);
+        // let north = Math.min(bounds.getNorth(), 40.203163);
+        // let west = Math.max(bounds.getWest(), -75.521439);
+        // let east = Math.min(bounds.getEast(), -74.803599);
+        let south = bounds.getSouth();
+        let north = bounds.getNorth();
+        let west = bounds.getWest();
+        let east = bounds.getEast();
+        return L.latLngBounds(L.latLng(south, west), L.latLng(north, east));
+
+    }
+
+    var bounds = getBounds();
+
+    for (var i = 0; i < stagingZoomLevels.length; i++) {
+        if (map.getZoom() >= stagingZoomLevels[i]) {
+            numlanes = numlanesWithZoomPhilly[i];
+            break;
+        }
+    }
+    // var blockWidth = getBlockSize(map.getZoom())[0]
+    // var blockHeight = getBlockSize(map.getZoom())[1]
+
+    var sent_init_ajex = false
+    var init_loading_count = 0
+    init_loading_done = function() {
+        reloadLink();
+        link_layers_to_load = [];
+        var times = []
+        var unit_time = 30
+        for (var i = 0; i < 120; i++) {
+            t = new Date(start_time)
+            t.setTime(t.getTime() + i * unit_time * 1000)
+            times.push(t)
+        }
+        map.timeDimension.setAvailableTimes(times, "replace")
+        $("#shade").remove()
+        spinner.stop()
+    }
+
+    var link_layers_to_load = [];
+
+    // load_link_layer = function(displayData, hash) {
+    //     link_layers_to_load.push([displayData, hash]);
+    //     // console.log("load_link_layer called");
+    //     // let linksLayer = L.geoJson(displayData, {
+    //     //                     style: {
+    //     //                         color: '#d3d3d3',
+    //     //                         weight: '3',
+    //     //                         opacity: '0.7'
+    //     //                     },
+    //     //                     onEachFeature: onEachFeature
+    //     //                 });
+    //     // linksLayer.link_ids = [];
+    //     // for (let link of displayData.features) {
+    //     //     loaded_link_ids.push(link.properties.no);
+    //     //     linksLayer.link_ids.push(link.properties.no);
+    //     // }
+    //     // linksLayersCache[hash] = linksLayer
+    //     // linksLayerGroup.addLayer(linksLayer)
+    //     reloadLinkLayer();
+    // }
+
+    // get_link = function(lat, lng, NE_lat, NE_lng, SW_lat, SW_lng, zoom) {
+    //             $.get("../get_links/", {
+    //                     numlanes: numlanes,
+    //                     NE_lat: NE_lat,
+    //                     NE_lng: NE_lng,
+    //                     SW_lat: SW_lat,
+    //                     SW_lng: SW_lng
+    //                 },
+    //                 function(data, textStatus) {
+    //                     console.log("called");
+    //                     data = massageLinkLayer(data);
+    //                     displayData = shift_features_for_two_ways(data, map.getZoom())
+    //                     link_layers_to_load.push([displayData, hashLatLng(lat, lng, zoom)])
+
+    //                     init_loading_count -= 1
+    //                     if (sent_init_ajex && init_loading_count == 0) {
+    //                         init_loading_done()
+    //                     }
+    //                 }, 'json');
+    //         }
+
+    // for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+    //     for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
+    //         let NE_lat = lat + blockHeight / 2
+    //         let NE_lng = lng + blockWidth / 2
+    //         let SW_lat = lat - blockHeight / 2
+    //         let SW_lng = lng - blockWidth / 2
+    //         init_loading_count += 1
+
+            
+    //         get_link(lat, lng, NE_lat, NE_lng, SW_lat, SW_lng, map.getZoom())
+    //     }
+    // }
+
+    sent_init_ajex = true
+
+
+    init_loading_count += 1
+    $.get("../get_latest_online_time/", {}, function(data, textStatus) {
+        start_time = new Date(data)
+        console.log("initialized start time", data);
+        start_time.setHours(start_time.getHours())
+        // start_time.setHours(start_time.getHours()+4)
+        init_loading_count -= 1
+        if (init_loading_count == 0) {
+            init_loading_done()
+        }
+
+    })
+
+
+
+    $.get("../get_DMS/", {},
+        function(data, textStatus) {
+            function onEachFeature(feature, layer) {
+                var container = $("<div/>")
+                container.append("<h3>DMS Info</h3><br>")
+                var table = $("<table>",  {"class": "table table-striped"})
+                for (key in feature.properties) {
+                    table.append($("<tr/>").html("<th>" + key + "</th>" + "<th>" + feature.properties[key] + "</th>"))
+                }
+                container.append(table)
+                layer.bindPopup(container[0]);
+            }
+
+            var linksLayer = L.geoJson(data, {
+                pointToLayer: function(feature, latlng) {
+                    return L.marker(latlng, {
+                        icon: L.icon({
+                            iconUrl: 'https://d30y9cdsu7xlg0.cloudfront.net/png/54542-200.png',
+                            iconSize: [30, 30]
+                        })
+                    });
+                },
+                onEachFeature: onEachFeature
+            }).addTo(map);
+        }
+    )
+    linkColors = {};
+
+    displayLinkInfoUpdates = function() {
+        var container = $('<ul class = "list-group"></ul>');
+        for (var i = 0; i < linkInfoUpdates.length; i++) {
+            var update = linkInfoUpdates[i];
+            li = $("<li/>", {
+                class: "list-group-item"
+            })
+            li.append("<span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span> ID:" + update.id)
+            li.append(", Capacity Drop: " + update.drop + "%");
+            container.append(li)
+            rem = function(me) {
+
+                $(me).parent().remove();
+                var text = $(me).parent().html();
+                console.log(text)
+                var id = parseInt(text.substring(text.indexOf("ID:") + 3, text.indexOf(",")));
+                console.log(id)
+                for (var i = 0; i < linkInfoUpdates.length; i++) {
+                    if (linkInfoUpdates[i].id == id) {
+                        linkInfoUpdates.splice(i, 1);
+                        break;
+                    }
+                }
+                return false;
+            };
+        }
+        $('#updatetextbox').html(container);
+    };
+
+    var linksRequests = [];
+
+    reloadLinkLayer = function () {
+        console.log("reloadLinkLayer reloading", link_layers_to_load.length, "blocks");
+        for (let i = 0; i < link_layers_to_load.length; i++) {
+            let tuple = link_layers_to_load[i];
+            let displayData = tuple[0];
+            let hash = tuple[1];
+            console.log("loading link layer", hash, displayData.features.length);
+            let linksLayer = L.vectorGrid.slicer(displayData, {
+                                    vectorTileLayerStyles: {
+                                        sliced: {
+                                            color: '#d3d3d3',
+                                            weight: '3',
+                                            opacity: '0.7'
+                                        },
+                                    },
+                                    maxZoom: 20,
+                                    interactive: true,
+                                    getFeatureId (f) { return f.properties.no; }
+                                });
+
+            linksLayer.on("click", () => console.log("link clicked"));
+            // linksLayer.on("click", onClickLink);
+            console.log("finish loading link layer", hash);
+
+            let link_ids = [];
+            // linksLayersCache[hash] = linksLayer;
+            for (let link of displayData.features) {
+                loaded_link_ids.push(link.properties.no);
+                link_ids.push(link.properties.no);
+            }
+
+            linksLayer.link_ids = link_ids;
+
+            if (link_ids.length == 0) {
+                console.log("No link to color");
+                continue
+            }
+            var index = map.timeDimension.getCurrentTimeIndex()
+            $.post("../get_online_congestion/", {
+                    start_time: start_time.toString().split('(')[0],
+                    index: index,
+                    link_id: link_ids,
+                    length: 1,
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                },
+                function(data, textStatus) {
+                    data = data[0]
+                    clean_cache()
+                    console.log("setting color");
+
+                    linksLayerGroup.addLayer(linksLayer);
+
+                    for (let id of link_ids) {
+                        linkColors[data[id]] = getColor(data[id]);
+                        linksLayer.setFeatureStyle(id, { color: linkColors[data[id]] });
+                    }
+                    console.log("colors loaded");
+                }
+            )
+            linksLayersCache[hash] = linksLayer;    
+        }
+        link_layers_to_load = [];
+    }
+
+    // This function removes and adds blocks of links
+    reloadLink = function() {
+        console.log('Current zoom level:', map.getZoom());
+        bounds = getBounds();
+
+        // Cancel all our old requests
+        for (let l of linksRequests) {
+            l.abort();
+        }
+        linksRequests = [];
+
+        for (var i = 0; i < stagingZoomLevels.length; i++) {
+            if (map.getZoom() >= stagingZoomLevels[i]) {
+                var numlanes = numlanesWithZoomPhilly[i];
+                break;
+            }
+        }
+
+        var zoom = map.getZoom()
+        var blockWidth = getBlockSize(map.getZoom())[0]
+        var blockHeight = getBlockSize(map.getZoom())[1]
+        for (var key in linksLayersCache) {
+            lag = key.split("|")[0]
+            lng = key.split("|")[1]
+            zoomLevel = key.split("|")[2]
+            if ((lat < bounds._southWest.lat - blockHeight || lat > bounds._northEast.lat + blockHeight ||
+                    lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
+                    || zoomLevel > zoom) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                    // ) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                console.log('removing link layer: ', hashLatLng(lat, lng, zoom));
+                linksLayerGroup.removeLayer(linksLayersCache[key])
+            }
+        }
+        for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+            for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
+                var NE_lat = lat + blockHeight / 2
+                var NE_lng = lng + blockWidth / 2
+                var SW_lat = lat - blockHeight / 2
+                var SW_lng = lng - blockWidth / 2
+                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) {
+                    // Layer is in cache
+                    console.log('Layer is in cache: ', hashLatLng(lat, lng, zoom));
+                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, zoom)]
+                    if (!linksLayerGroup.hasLayer(cachedLayer)) {
+                        //This is to prevent loading layers with previous color
+                        if (playStatus) {
+                            // cachedLayer.eachLayer(function(layer) {
+                            //     layer.setStyle(function(feature) {
+                            //         return {
+                            //             color: "#d3d3d3"
+                            //         }
+                            //     })
+                            // })
+                            cachedLayer.setFeatureStyle(function (feature) {
+                                return {
+                                    color : "#d3d3d3"
+                                }
+                            })
+                        }
+                        linksLayerGroup.addLayer(cachedLayer)
+                    }
+                } else {
+                    console.log('adding link layer: ', hashLatLng(lat, lng, zoom));
+                    // Layer is not in cache
+                    (function(lat, lng, zoom) {
+
+                        // Save the link request so we can cancel later
+                        let req = $.get("../get_links/", {
+                                numlanes: numlanes,
+                                NE_lat: NE_lat,
+                                NE_lng: NE_lng,
+                                SW_lat: SW_lat,
+                                SW_lng: SW_lng
+                            },
+                            function(data, textStatus) {
+                                data = massageLinkLayer(data);
+
+                                let displayData = shift_features_for_two_ways(data, map.getZoom())
+                                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) return
+                                link_layers_to_load.push([displayData, hashLatLng(lat, lng, zoom)])
+                                console.log("links loaded", displayData.features.length);
+                            }, 'json');
+                        linksRequests.push(req);
+                    })(lat, lng, zoom)
+                }
+            }
+        }
+        console.log("Length of the buffer: ", Object.keys(linksLayersCache).length)
+        $.when.apply(null, linksRequests).done(reloadLinkLayer);
+    };
+    
+    map.on('moveend', reloadLink);
+
+    $("#formSubmit").click(function() {
+        $.post("../submit_link_update_online/", {
+            "linkInfoUpdates": JSON.stringify(linkInfoUpdates),
+            'csrfmiddlewaretoken': '{{ csrf_token }}',
+        }, function(data, status) {
+            linkInfoUpdates = []
+            displayLinkInfoUpdates()
+            alert(data);
+        })
+    })
+
+    var spinneropts = {
+        lines: 13, // The number of lines to draw
+        length: 20, // The length of each line
+        width: 10, // The line thickness
+        radius: 30, // The radius of the inner circle
+        corners: 1, // Corner roundness (0..1)
+        direction: 1, // 1: clockwise, -1: counterclockwise
+        color: '#000', // #rgb or #rrggbb or array of colors
+        speed: 1, // Rounds per second
+        trail: 60, // Afterglow percentage
+        shadow: false, // Whether to render a shadow
+        hwaccel: false, // Whether to use hardware acceleration
+        zIndex: 2e9, // The z-index (defaults to 2000000000)
+    };
+    var target = document.getElementById('map')
+    var shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
+    $('#map').prepend(shade)
+    var spinner = new Spinner(spinneropts).spin(target);
+
+
+    var handlers = [30, 50, 70];
+    var colors = ["green", "yellow", "orange", "red"];
+    updateColors(handlers);
+
+    $("#slider").slider({
+        min: 0,
+        max: 100,
+        values: handlers,
+        slide: function (evt, ui) {
+            updateColors(ui.values);
+            var str = ui.values[0] + "&nbsp;&nbsp;" + ui.values[1] + "&nbsp;&nbsp;" + ui.values[2]
+            $("#sliderText").html(str)
+        }
+    });
+
+    $("#slider").css("margin-bottom", 10)
+    var str = handlers[0] + "&nbsp;&nbsp;" + handlers[1] + "&nbsp;&nbsp;" + handlers[2]
+    $("#sliderText").html(str)
+
+    function updateColors(values) {
+        var colorstops = colors[0] + ", "; // start left with the first color
+            for (var i=0; i< values.length; i++) {
+                colorstops += colors[i] + " " + values[i] + "%,";
+                colorstops += colors[i+1] + " " + values[i] + "%,";
+            }
+            // end with the last color to the right
+            colorstops += colors[colors.length-1];
+
+            /* Safari 5.1, Chrome 10+ */
+            var css = '-webkit-linear-gradient(left,' + colorstops + ')';
+            $('#slider').css('background-image', css);
+    }
+
+
+    $("#changeThreshold").click(function(){
+        threshold1 = $('#slider').slider("option", "values")[0] / 100
+        threshold2 = $('#slider').slider("option", "values")[1] / 100
+        threshold3 = $('#slider').slider("option", "values")[2] / 100
+        updateLegend()
+    })
+
+    $("#defaultThreshold").click(function() {
+        threshold1 = 0.3
+        threshold2 = 0.5
+        threshold3 = 0.7
+        updateLegend()
+        $("#slider").slider('values',[30,50,70]);
+        updateColors(handlers)
+    })
+
+    linksTimeLayer.addTo(map);
+
+</script>
+{% endblock %}

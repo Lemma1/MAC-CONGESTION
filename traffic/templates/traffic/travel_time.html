@@ -1,0 +1,782 @@
+{% extends "traffic/base.html" %}
+
+{% load staticfiles %}
+
+{% block title %}
+MDAP - Travel Time: Interstates
+{% endblock %}
+
+{% block style %}
+
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+
+<style>
+    .leaflet-control{
+        line-height: 18px;
+        border-radius: 5px;
+        background: white;
+        box-shadow: -2px -2px 2px #CCCCCC;
+        opacity: 0.8;
+        padding: 2px 8px 8px 8px;
+    }
+    .legend {
+        line-height: 18px;
+        height:80px;
+        width:120px;
+        right: -10px;
+        bottom: -10px;
+        border-radius: 5px;
+        background: white;
+        box-shadow: -2px -2px 2px #CCCCCC;
+        opacity: 0.8;
+    }
+    .legend i {
+        width: 12px;
+        height: 12px;
+        float: left;
+        border-radius: 6px;
+        margin-right: 7px;
+        margin-left: 6px;
+        margin-top: 6px;
+        opacity: 0.9;
+    }
+    .legend j {
+        width: 12px;
+        height: 12px;
+        float: left;
+        border-radius: 6px;
+        margin-right: 7px;
+        margin-left: 6px;
+        margin-top: 3px;
+        opacity: 0.9;
+    }.legend k {
+        width: 12px;
+        height: 12px;
+        float: left;
+        border-radius: 6px;
+        margin-right: 7px;
+        margin-left: 6px;
+        margin-top: 3px;
+        opacity: 0.9;
+    }
+</style>
+<link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+<link rel="stylesheet" href="{% static 'traffic/jquery.jqplot.min.css' %}">
+<link rel="stylesheet" href="{% static 'traffic/bootstrap-datetimepicker.min.css' %}" />
+<link rel="stylesheet" href="{% static 'traffic/bootstrap-switch.min.css' %}" />
+{% endblock %}
+
+
+{% block content %}
+<div id='user_input' class="well" style="overflow:auto;height:100%;">
+    <div class="container" style="width: inherit">
+        <div class="row"><h3 style="margin-top: 0;">Travel Time </h3></div>
+        <div class="row"><h4> Interstates: </h4></div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>Origin:</h5></div>
+            <div class="col-md-8" style="padding-left: 0;">
+                <select id="select_tmc1" name="select_tmc1"  class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+			  	    {% for tmc in tmcs%}
+                        <option value={{tmc.tmc}}>{{tmc.road}} - {{tmc.direction}} - {{tmc.intersection}}</option>
+                    {% endfor %}
+			    </select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>Destination:</h5></div>
+            <div class="col-md-8" style="padding-left: 0;">
+                <select id="select_tmc2" name="select_tmc2"  class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+			    </select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>Start Date:</h5></div>
+            <div class="col-md-4" style="padding-left: 0;padding-right: 1px;">
+            	<select id='sm' name = 'sm' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					<option value='01'>Jan</option>
+					<option value='02'>Feb</option>
+					<option value='03'>Mar</option>
+					<option value='04'>Apr</option>
+					<option value='05'>May</option>
+					<option value='06'>Jun</option>
+					<option value='07'>Jul</option>
+					<option value='08'>Aug</option>
+					<option value='09'>Sep</option>
+					<option value='10'>Oct</option>
+					<option value='11'>Nov</option>
+					<option value='12'>Dec</option>
+				</select>
+            </div>
+            <div class="col-md-4" style="padding-left: 0;">
+				<select id='sd' name = 'sd' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					{% for i in n%}
+						<option value={{i}}>{{i}}</option>
+					{% endfor %}
+				</select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>End Date:</h5></div>
+            <div class="col-md-4" style="padding-left: 0;padding-right: 1px;">
+            	<select id='em' name = 'em' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					<option value='01'>Jan</option>
+					<option value='02'>Feb</option>
+					<option value='03'>Mar</option>
+					<option value='04'>Apr</option>
+					<option value='05'>May</option>
+					<option value='06'>Jun</option>
+					<option value='07'>Jul</option>
+					<option value='08'>Aug</option>
+					<option value='09'>Sep</option>
+					<option value='10'>Oct</option>
+					<option value='11'>Nov</option>
+					<option value='12'>Dec</option>
+				</select>
+            </div>
+            <div class="col-md-4" style="padding-left: 0;">
+				<select id='ed' name = 'ed' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					{% for i in n%}
+						<option value={{i}}>{{i}}</option>
+					{% endfor %}
+				</select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>Start Time:</h5></div>
+            <div class="col-md-4" style="padding-left: 0;padding-right: 1px;">
+            	<select id='sh' name = 'sh' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="90%">
+					<option value='00'>0</option>
+					<option value='01'>1</option>
+					<option value='02'>2</option>
+					<option value='03'>3</option>
+					<option value='04'>4</option>
+					<option value='05'>5</option>
+					<option value='06'>6</option>
+					<option value='07'>7</option>
+					<option value='08'>8</option>
+					<option value='09' selected="selected">9</option>
+					<option value='10'>10</option>
+					<option value='11'>11</option>
+					<option value='12'>12</option>
+					<option value='13'>13</option>
+					<option value='14'>14</option>
+					<option value='15'>15</option>
+					<option value='16'>16</option>
+					<option value='17'>17</option>
+					<option value='18'>18</option>
+					<option value='19'>19</option>
+					<option value='20'>20</option>
+					<option value='21'>21</option>
+					<option value='22'>22</option>
+					<option value='23'>23</option>
+                </select>
+                <span> <strong>:</strong> </span>
+            </div>
+            <div class="col-md-4" style="padding-left: 0;">
+				<select id='smi' name = 'smi' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					<option value='00'>0</option>
+					<option value='05'>5</option>
+					<option value='10'>10</option>
+					<option value='15'>15</option>
+					<option value='20'>20</option>
+					<option value='25'>25</option>
+					<option value='30' selected="selected">30</option>
+					<option value='35'>35</option>
+					<option value='40'>40</option>
+					<option value='45'>45</option>
+					<option value='50'>50</option>
+					<option value='55'>55</option>
+				</select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top:3px;">
+            <div class="col-md-4" style="height: 36px;padding-right: 0;"><h5>End Time:</h5></div>
+            <div class="col-md-4" style="padding-left: 0;padding-right: 1px;">
+            	<select id='eh' name = 'eh' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="90%">
+					<option value='00'>0</option>
+					<option value='01'>1</option>
+					<option value='02'>2</option>
+					<option value='03'>3</option>
+					<option value='04'>4</option>
+					<option value='05'>5</option>
+					<option value='06'>6</option>
+					<option value='07'>7</option>
+					<option value='08'>8</option>
+					<option value='09' selected="selected">9</option>
+					<option value='10'>10</option>
+					<option value='11'>11</option>
+					<option value='12'>12</option>
+					<option value='13'>13</option>
+					<option value='14'>14</option>
+					<option value='15'>15</option>
+					<option value='16'>16</option>
+					<option value='17'>17</option>
+					<option value='18'>18</option>
+					<option value='19'>19</option>
+					<option value='20'>20</option>
+					<option value='21'>21</option>
+					<option value='22'>22</option>
+					<option value='23'>23</option>
+                </select>
+                <span> <strong>:</strong> </span>
+            </div>
+            <div class="col-md-4" style="padding-left: 0;">
+				<select id='emi' name = 'emi' class="selectpicker show-tick show-menu-arrow" data-live-search="true" data-width="100%">
+					<option value='00'>0</option>
+					<option value='05'>5</option>
+					<option value='10'>10</option>
+					<option value='15'>15</option>
+					<option value='20'>20</option>
+					<option value='25'>25</option>
+					<option value='30' selected="selected">30</option>
+					<option value='35'>35</option>
+					<option value='40'>40</option>
+					<option value='45'>45</option>
+					<option value='50'>50</option>
+					<option value='55'>55</option>
+				</select>
+            </div>
+	    </div>
+    	<div class="row" style="padding-top: 10px;">
+            <div class="col-md-6" style="padding-right: 0;">
+                <input type="checkbox" id="checkboxTTI" name="checkboxTTI" checked>
+            </div>
+            <div class="col-md-6" style="padding-left: 0;">
+                <input type="checkbox" id="checkboxBT" name="checkboxBT" checked>
+            </div>
+        </div>
+        <div class="row" style="padding-top: 5px;">
+            <div class="col-md-6" style="padding-right: 0;">
+                <input type="checkbox" id="checkboxBI" name="checkboxBI" checked>
+            </div>
+            <div class="col-md-6" style="padding-left: 0;">
+                <input type="checkbox" id="checkboxPTI" name="checkboxPTI" checked>
+            </div>
+        </div>
+    </div>
+
+<button type="button" class="btn btn-default btn-block" style="margin-top: 10px; margin-bottom: 15px;" id="his_avg">
+    <span class="glyphicon glyphicon-search"> </span> &nbsp; Update
+</button>
+
+    <div style="width:100%;height:2px;margin:0 auto;padding:0;background-color:#ddd;overflow:hidden;"></div>
+
+	<div class="container" style="width: inherit">
+        <div class="row">
+			<h4 style="padding-top: 15px"> Average Travel Time: </h4>
+        </div>
+        <div class="row">
+        	<div class="col-md-6" style="padding-right: 0;">
+				Car:
+            </div>
+            <div class="col-md-6" style="padding-left: 0;">
+                <span id = 'travel_time_car'>&emsp;&emsp;&emsp;</span>
+            </div>
+        </div>
+        <div class="row">
+            <div class="col-md-6" style="padding-right: 0;">
+				Truck:
+            </div>
+            <div class="col-md-6" style="padding-left: 0;">
+                <span id = 'travel_time_truck'>&emsp;&emsp;&emsp;</span>
+            </div>
+        </div>
+	</div>
+</div>
+{% endblock%}
+
+{% block map %}
+<div id="map"></div>
+
+    <div id="chartcontainer">
+     	<div id="chartTTI" style="height:auto;width:97%;margin-left: 20px;margin-right: 20px;margin-top: 20px; "></div>
+        <div id="chartBT" style="height:auto;width:97%;margin-left: 20px;margin-right: 20px;margin-top: 20px; "></div>
+        <div id="chartBI" style="height:auto;width:97%;margin-left: 20px;margin-right: 20px;margin-top: 20px; "></div>
+        <div id="chartPTI" style="height:auto;width:97%;margin-left: 20px;margin-right: 20px;margin-top: 20px; "></div>
+	</div>
+
+{% endblock %}
+
+
+{% block script %}
+<script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/TMC_geojson.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/jquery.jqplot.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/jqplot.dateAxisRenderer.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/jqplot.pointLabels.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/jqplot/plugins/jqplot.highlighter.min.js' %}"></script>
+
+<script type="text/javascript" src="{% static 'traffic/moment.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/bootstrap-3.3.2/js/transition.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/bootstrap-3.3.2/js/collapse.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/bootstrap-datetimepicker.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/bootstrap-switch.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/spinner.js' %}"></script>
+
+<script type="text/javascript">
+    var options = {
+        onColor: 'info',
+        offColor: 'warning',
+        labelText: 'TTI',
+        labelWidth: 45
+    };
+    $("[name='checkboxTTI']").bootstrapSwitch(options);
+    options.labelText = 'BT';
+    $("[name='checkboxBT']").bootstrapSwitch(options);
+    options.labelText = 'BI';
+    $("[name='checkboxBI']").bootstrapSwitch(options);
+	options.labelText = 'PTI';
+    $("[name='checkboxPTI']").bootstrapSwitch(options);
+</script>
+
+<script>
+     $('.selectpicker').selectpicker({
+      style: 'btn-inverse',
+      size: 10
+     });
+
+{#======================================= Spinner Options ===========================================#}
+        var spinneropts = {
+            lines: 9, // The number of lines to draw
+            length: 20, // The length of each line
+            width: 15, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            rotate: 0, // The rotation offset
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 60, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            className: 'spinner', // The CSS class to assign to the spinner
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+            top: '50%', // Top position relative to parent
+            left: '50%' // Left position relative to parent
+        };
+{#=============================================== End ================================================#}
+</script>
+
+<script>
+	//$(function(){
+	var map = L.map('map').setView([40.4407937, -80.0029874], 10);
+    var tmcLayer, selectionLayer, carLayer, truckLayer;
+    
+	// add an OpenStreetMap tile layer
+	var basemap = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+		attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+	}).addTo(map);
+	
+	control = L.control.layers({'Base Map':basemap},null,{collapsed:false}).addTo(map);
+	
+	map.addControl( new L.Control.Search({
+			url: 'http://nominatim.openstreetmap.org/search?format=json&q={s}',
+			jsonpParam: 'json_callback',
+			propertyName: 'display_name',
+			propertyLoc: ['lat','lon'],
+			markerLocation: true,
+			autoType: false,
+			autoCollapse: true,
+			minLength: 2,
+			zoom:10
+		}) );
+		
+	var info = L.control();
+	info.onAdd = function (map) {
+		this._div = L.DomUtil.create('div', 'info');
+		this.update();
+		return this._div;
+	};
+	info.update = function (props) {
+		this._div.innerHTML = '<h4>Information</h4>' +  (props ?
+			'<b>' + props.road + '</b>'
+			+'<br>' + props.direction
+			+'<br>' + props.intersection
+			+'<br>' + ('' + props.miles).substr(0,4) + ' miles'
+			: 'Hover over a point');
+	};
+	info.addTo(map);
+	
+	function highlightFeature(e) {
+			var layer = e.target;
+{#			layer.setStyle({#}
+{#				radius: 8,#}
+{#				color: '#666',#}
+{#				dashArray: '',#}
+{#				fillOpacity: 0.7#}
+{#			});#}
+			info.update(layer.feature.properties);
+		}
+
+    function resetHighlight(e) {
+        var layer = e.target;
+{#        layer.setStyle({#}
+{#            radius: 6,#}
+{#			color: '#666',#}
+{#			dashArray: '',#}
+{#			fillOpacity: 0.7#}
+{#        });#}
+		info.update();
+	}
+
+	//var selected = 0;
+	var road_dir = '';
+    function tmc1_change(){
+		var attributes = $('#select_tmc1 option:selected').text().split(' - ');
+		var road_dir_selected = attributes[0]+attributes[1];
+		if (road_dir_selected != road_dir){
+			road_dir = road_dir_selected;
+			var road_tmc;
+			var tmc = $('#select_tmc1 option:selected').attr('value');
+			$("#info_road").text(attributes[0]);
+			$("#info_direction").text(attributes[1]);
+			$("#select_tmc2").empty();
+			$("#travel_time_car").empty();
+			$("#travel_time_truck").empty();
+			if(carLayer){
+					control.removeLayer(carLayer);
+					if(map.hasLayer(carLayer)){
+						map.removeLayer(carLayer);
+					}
+				}
+			if(truckLayer){
+					control.removeLayer(truckLayer);
+					if(map.hasLayer(truckLayer)){
+						map.removeLayer(truckLayer);
+					}
+				}
+			if(selectionLayer){
+				control.removeLayer(selectionLayer);
+				if(map.hasLayer(selectionLayer)){
+					map.removeLayer(selectionLayer);
+				}
+			}
+			$.get("../get_road_tmc/", {tmc:tmc}, function(data, textStatus){
+
+				road_tmc= data;
+				for(var i=0;i<road_tmc.features.length;i++){
+					$("#select_tmc2").append("<option value="+road_tmc.features[i].properties.TMC+">"+ road_tmc.features[i].properties.road + ' - ' + road_tmc.features[i].properties.direction + ' - ' + road_tmc.features[i].properties.intersection + "</option>");
+				}
+                $("#select_tmc2").selectpicker('refresh');
+				selectionLayer = L.geoJson(road_tmc,{
+					pointToLayer:function(feature, latlng){
+								return L.circleMarker(latlng,{radius:6,fillOpacity:0.9});
+						},
+					onEachFeature:function(feature,layer){
+						layer.on(
+							{
+								mouseover:highlightFeature,
+								mouseout:resetHighlight,
+								click: function(){
+										$('#select_tmc2 option:selected').removeAttr('selected');
+                                    	$("#select_tmc2").selectpicker('refresh');
+										$('#select_tmc2').find("option[value='" + layer.feature.properties.TMC +"']").attr('selected', true);
+                                    	$("#select_tmc2").selectpicker('refresh');
+										}
+							});
+						layer.bindPopup("TMC : " + feature.properties.TMC +
+									"<br>Road: " + feature.properties.road +
+									"<br>Direction: " + feature.properties.direction +
+									'<br>Miles: ' +feature.properties.miles +
+									'<br>Road order: ' + feature.properties.road_order);
+						}
+					}).addTo(map);
+					control.addOverlay(selectionLayer, attributes[0]);
+			},"json");
+	  	}
+	}
+    tmc1_change();
+	$('#select_tmc1').change(tmc1_change);
+	
+	
+	function onEachFeature(feature, layer) {
+			layer.on({
+				mouseover:highlightFeature,
+				mouseout:resetHighlight,
+				click: function(){
+					$('#select_tmc1 option:selected').removeAttr('selected');
+					$('#select_tmc1').find("option[value='" + layer.feature.properties.TMC +"']").attr('selected', true);
+                    $("#select_tmc1").selectpicker('refresh');
+					$('#select_tmc1').trigger('change');
+                    $("#select_tmc1").selectpicker('refresh');
+				}
+			});
+			if (feature.properties) {
+				layer.bindPopup("TMC : " + feature.properties.TMC + 
+								"<br>Road: " + feature.properties.road + 
+								"<br>Direction: " + feature.properties.direction + 
+								'<br>Miles: ' +feature.properties.miles +
+								'<br>Road Order: ' + feature.properties.road_order);
+			}
+		}
+		
+	function getColor(direction){
+		return direction == 'NORTHBOUND'? 'white':
+			   direction == 'SOUTHBOUND'? '#d4b9da':
+			   direction == 'EASTBOUND'? 'white':
+			   							  '#d4b9da';
+	}
+
+	function MarkerStyle(direction){
+		return {
+			radius: 5,
+			fillColor: getColor(direction),
+			color: 'blue',
+			weight: 1,
+			opacity: 1,
+			fillOpacity: 0.9
+		};
+	}
+	
+	tmcLayer = L.geoJson(tmc,{
+		pointToLayer:function(feature, latlng){
+			return L.circleMarker(latlng, MarkerStyle(feature.properties.direction));
+		},
+		onEachFeature:onEachFeature
+	}).addTo(map);
+	control.addOverlay(tmcLayer, 'TMC');
+	
+	function getColorS(speed){
+		return speed < 20 ? 'red':
+			   speed < 50 ? 'yellow':
+			                'green';
+	}
+
+    function plotindex(label,chartlabel,all,allindex,tmc1,tmc2,sdate,edate){
+
+			var n = all.length;
+			var line = [];
+            var min = 99999, max = -99999;
+			for(var i=0;i<n;i++){
+                var hour = allindex[i].split(':')[0];
+                var minute = allindex[i].split(":")[1];
+				var point = [""+hour+":"+minute,all[i]];
+				line.push(point);
+                if (all[i] > max){ max = all[i]}
+                if (all[i] < min){ min = all[i]}
+			}
+            max = max+0.2*(max-min);
+            min = min-0.2*(max-min);
+        	if (max == min){
+                max = max + 0.1;
+                min = min - 0.1;
+            }
+			var plot = $.jqplot(chartlabel, [line], {
+    			title: label + ' for whole day between TMC: ' + tmc1 + ' and TMC: ' + tmc2 + ' in the period: ' +
+                sdate + '-' + edate + ' of Year 2013',
+                animate: !$.jqplot.use_excanvas,
+                seriesDefaults: {
+                    pointLabels: { show:false, formatString: "%#.3f" },
+                    rendererOptions: {
+                        animation: {
+                            speed: 4000
+                        },
+                        fillToZero: true
+                    }
+                },
+    			axes:{
+    					xaxis:{label:'Time of the day', renderer:$.jqplot.DateAxisRenderer, tickOptions:{formatString:'%#H:%M'}, min:"0:00", max:"24:00"},
+    					yaxis:{min:min, max:max, tickOptions:'%#.3f',label:jqYaxisLabel[label]}
+    				},
+    			//series:[{lineWidth:4, markerOptions:{style:'circle',size:6}}]
+    			series:[
+                    {color:jqplotColors[label],label:label,showLine:true }
+                ],
+                legend: {
+                    show: true,
+                    location: 'se',     // compass direction, nw, n, ne, e, se, s, sw, w.
+                    xoffset: 12,        // pixel offset of the legend box from the x (or x2) axis.
+                    yoffset: 12        // pixel offset of the legend box from the y (or y2) axis.
+                },
+                highlighter: {
+                    show: true,
+                    sizeAdjust: 7.5
+                }
+  			});
+	}
+
+    var jqplotColors = {
+        "Travel Time Index": '#55A9D3',
+        "Buffer Time": '#f1c40f',
+        "Buffer Index": '#5FAB78',
+        "Planning Time Index": '#ff86a4'
+    };
+
+    var jqYaxisLabel = {
+        "Travel Time Index": 'TTI Value',
+        "Buffer Time": 'Buffer Time\n(min)',
+        "Buffer Index": 'BI Value',
+        "Planning Time Index": 'PTI Value'
+    };
+
+	$("#his_avg").click(function(){
+        var target = document.getElementById('map');
+        spinner = new Spinner(spinneropts).spin(target);
+        target.style.opacity = '0.25';
+
+		var sm = $("#sm option:selected").attr("value"),
+			sd = $("#sd option:selected").attr("value"),
+			em = $("#em option:selected").attr("value"),
+			ed = $("#ed option:selected").attr("value"),
+			sh = $("#sh option:selected").attr("value"),
+			smi = $("#smi option:selected").attr("value"),
+			eh = $("#eh option:selected").attr("value"),
+			emi = $("#emi option:selected").attr("value"),
+			tmc1 = $("#select_tmc1 option:selected").attr('value'),
+			tmc2 = $("#select_tmc2 option:selected").attr('value'),
+			travel_time;
+            sd = sd.length<2?'0'+sd:sd;
+            ed = ed.length<2?('0'+ed):ed;
+			//sd = sd<10?('0'+sd):sd;
+			//ed = ed<10?('0'+ed):ed;
+		$('#travel_time_car').text('');
+		$('#travel_time_truck').text('');
+        $("#chartTTI").empty();
+        $("#chartTTI").height(0);
+        $("#chartBT").empty();
+        $("#chartBT").height(0);
+        $("#chartBI").empty();
+        $("#chartBI").height(0);
+		$("#chartPTI").empty();
+        $("#chartPTI").height(0);
+		$.get("../get_travel_time/", {s_date:sm+sd, e_date:em+ed, s_time:sh+smi, e_time:eh+emi, tmc1:tmc1, tmc2:tmc2}, function(data, textStatus){
+            travel_time= data;
+			$('#travel_time_car').text((''+travel_time.travel_time).substr(0,4)+" minutes");
+			$('#travel_time_truck').text((''+travel_time.truck_travel_time).substr(0,4)+" minutes");
+
+			//By PXD
+            var timeave = travel_time.allavg,
+                time95 = travel_time.all95,
+                freetime = parseFloat(travel_time.freeflowtime),
+			    TTIflag = $('#checkboxTTI').bootstrapSwitch('state'),
+        	    BTflag = $('#checkboxBT').bootstrapSwitch('state'),
+        	    BIflag = $('#checkboxBI').bootstrapSwitch('state'),
+        	    PTIflag = $('#checkboxPTI').bootstrapSwitch('state'),
+				sdate = $("#sm option:selected").text() + ' ' + $("#sd option:selected").text(),
+            	edate = $("#em option:selected").text() + ' ' + $("#ed option:selected").text();
+
+            if (TTIflag){
+				var allTTI = [], allTTIindex = [];
+                for (var i=0; i<timeave.length; i++){
+                    temp = parseFloat(timeave[i].value);
+                    allTTI.push(temp/freetime);
+                    allTTIindex.push(timeave[i].key);
+                }
+                plotindex('Travel Time Index','chartTTI',allTTI,allTTIindex,tmc1,tmc2,sdate,edate);
+            }
+            if (BTflag){
+                var allBT = [], allBTindex = [];
+                for (var i=0; i<timeave.length; i++){
+                    temp = parseFloat(timeave[i].value);
+                    temp2 = parseFloat(time95[i].value);
+                    allBT.push(temp2-temp);
+                    allBTindex.push(timeave[i].key);
+                }
+                plotindex('Buffer Time','chartBT',allBT,allBTindex,tmc1,tmc2,sdate,edate);
+            }
+            if (BIflag){
+                var allBI = [], allBIindex = [];
+                for (var i=0; i<timeave.length; i++){
+                    temp = parseFloat(timeave[i].value);
+                    temp2 = parseFloat(time95[i].value);
+                    allBI.push((temp2-temp)/temp);
+                    allBIindex.push(timeave[i].key);
+                }
+                plotindex('Buffer Index','chartBI',allBI,allBIindex,tmc1,tmc2,sdate,edate);
+            }
+            if (PTIflag){
+                var allPTI = [], allPTIindex = [];
+                for (var i=0; i<timeave.length; i++){
+                    temp2 = parseFloat(time95[i].value);
+                    allPTI.push(temp2/freetime);
+                    allPTIindex.push(timeave[i].key);
+                }
+                plotindex('Planning Time Index','chartPTI',allPTI,allPTIindex,tmc1,tmc2,sdate,edate);
+            }
+			//End
+
+			if(carLayer){
+				control.removeLayer(carLayer);
+				if(map.hasLayer(carLayer)){
+					map.removeLayer(carLayer);
+				}
+			}
+			carLayer = L.geoJson(travel_time.tmc_geometry,{
+				pointToLayer:function(feature, latlng){
+					return L.circleMarker(latlng,{radius:5, fillOpacity: 1, color:getColorS(travel_time.speed)});
+				},
+				onEachFeature:function(feature,layer){
+					layer.on(
+						{
+							mouseover:highlightFeature,
+							mouseout:resetHighlight,
+							click: function(){
+										$('#select_tmc2 option:selected').removeAttr('selected');
+                                		$("#select_tmc2").selectpicker('refresh');
+										$('#select_tmc2').find("option[value='" + layer.feature.properties.TMC +"']").attr('selected', true);
+                                		$("#select_tmc2").selectpicker('refresh');
+									}
+						});
+					layer.bindPopup("TMC : " + feature.properties.TMC + 
+								"<br>Road: " + feature.properties.road + 
+								"<br>Direction: " + feature.properties.direction + 
+								'<br>Miles: ' +feature.properties.miles +
+								'<br>Road Order: ' + feature.properties.road_order);
+					}
+			}).addTo(map);
+			control.addOverlay(carLayer,'Car Speed');
+			
+			if(truckLayer){
+				control.removeLayer(truckLayer);
+				if(map.hasLayer(truckLayer)){
+					map.removeLayer(truckLayer);
+				}
+			}
+			truckLayer = L.geoJson(travel_time.tmc_geometry,{
+				pointToLayer:function(feature, latlng){
+					return L.circleMarker(latlng, {radius:5, fillOpacity: 1, color:getColorS(travel_time.truck_speed)});
+				},
+				onEachFeature:function(feature,layer){
+					layer.on(
+						{
+							mouseover:highlightFeature,
+							mouseout:resetHighlight,
+							click: function(){
+										$('#select_tmc2 option:selected').removeAttr('selected');
+                                		$("#select_tmc2").selectpicker('refresh');
+										$('#select_tmc2').find("option[value='" + layer.feature.properties.TMC +"']").attr('selected', true);
+                                		$("#select_tmc2").selectpicker('refresh');
+									}
+						});
+					layer.bindPopup("TMC : " + feature.properties.TMC + 
+								"<br>Road: " + feature.properties.road + 
+								"<br>Direction: " + feature.properties.direction + 
+								'<br>Miles: ' +feature.properties.miles +
+								'<br>Road Order: ' + feature.properties.road_order);
+					}
+			});
+			control.addOverlay(truckLayer,'Truck Speed');
+            ///////Spinner Stop
+                    spinner.stop();
+                    var target = document.getElementById('map');
+                    target.style.opacity = '1';
+            ///////////////////
+		},"json");
+	});
+	
+	var legend = L.control({position: 'bottomright'});
+		legend.onAdd = function (map) {
+			var div = L.DomUtil.create('div', 'info legend'),
+				grades = [0, 20, 50],
+				labels =[];
+			labels.push('<strong>Speed(mph)</strong>:');
+			labels.push('<i style="background:red' + '"></i>' + grades[0] + ' - ' + grades[1]);
+			labels.push('<j style="background:yellow' + '"></j>' + grades[1] + ' - ' + grades[2]);
+			labels.push('<k style="background:green' + '"></k>' + grades[2] + ' + ');
+			div.innerHTML = labels.join('<br>');
+			return div;
+		};
+		legend.addTo(map);
+	//});
+  </script>
+{% endblock %}

@@ -1,0 +1,206 @@
+{% load staticfiles %}
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+	<meta charset="UTF-8">
+	<title>{% block title %}{% endblock %} </title>
+    <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"> -->
+	<link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap-Sandstone.min.css'%}">
+	<link rel="stylesheet" type="text/css" href="{% static 'traffic/style_new.css'%}">
+	<link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap-select.css'%}">
+	<link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0-rc2/css/bootstrap-glyphicons.css">
+	<script   src="https://code.jquery.com/jquery-2.2.4.min.js"   integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="   crossorigin="anonymous"></script>
+  <script type="text/javascript" src={% static "traffic/bootstrap.js" %}></script>
+	<script type="text/javascript" src="{% static 'traffic/bootstrap-select.js'%}"></script>
+	<link rel="shortcut icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
+  <link rel="traffic-icon" href="{% static 'traffic/images/transport.png' %}" type="icon">
+	<link rel="icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
+	<link rel="stylesheet" href="{% static 'traffic/leaflet/leaflet.css' %}" />
+	<script src="{% static 'traffic/leaflet/leaflet.js' %}"></script>
+    <!-- <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+          ga('create', 'UA-68685019-1', 'auto');
+          ga('send', 'pageview', location.pathname);
+
+
+        var sc_project=10654028;
+        var sc_invisible=1;
+        var sc_security="3d4bc21f";
+        var scJsHost = (("https:" == document.location.protocol) ?
+        "https://secure." : "http://www.");
+        document.write("<sc"+"ript type='text/javascript' src='" + scJsHost +
+        "statcounter.com/counter/counter.js'></"+"script>");
+    </script> -->
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+    {% block style %}{% endblock %}
+</head>
+
+<body>
+  <div class="mainpage" id="main">
+		<div class="jumbotron">
+			<div class="container">
+				<h1> Mobility Data Analytics Platform </h1>
+			</div>
+		</div>
+		<nav class="navbar navbar-default navbar-static-top" role="navigation">
+			<div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right" style="margin-right: 20px;">
+                    {% if perms.traffic.perm_download %}
+                    <li id="nav-download"><a href="{% url 'traffic:download' %}"><span class="glyphicon glyphicon-download-alt"> </span> &nbsp;Download</a></li>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                    <li id="nav-logout"><a href="{% url 'traffic:logout' %}">Logout</a></li>
+                    {% endif %}
+                </ul>
+				<ul class="nav navbar-nav">
+                    <li id="nav-home"><a href="{% url 'traffic:index' %}">Home</a></li>
+
+<!--                     {% if perms.traffic.perm_weather %}
+        	        <li id="nav-weather"><a href="{% url 'traffic:weather' %}">Weather</a></li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_parking %}
+                    <li id="nav-parking"><a href="{% url 'traffic:parking' %}">Parking</a></li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_closure %}
+                    <li id="nav-closure"><a href="{% url 'traffic:closure' %}">Closure</a></li>      <!Added by SGYang>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_camera %}
+                    <li id="nav-cameras"><a href="{% url 'traffic:camera' %}">Cameras</a></li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_count %}
+                    <li id="nav-trafficcounts" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Traffic Counts <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{% url 'traffic:count' %}">Routes Counts</a></li>
+							<li><a href="{% url 'traffic:sensors_counts_webpage' %}">Sensors Counts</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_transit %}
+                    <li id="nav-transit" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Transit <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li class="dropdown dropdown-submenu">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown"> Bus On-Time Performance &nbsp;&nbsp; </a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'traffic:transit_ontimeperformance_byroute' %}"> Query by Route </a></li>
+                                    <li><a href="{% url 'traffic:transit_ontimeperformance_bystop' %}"> Query by Stop </a></li>
+                                    <li><a href="{% url 'traffic:transit_schedule' %}"> Query by Trip </a></li>
+                                </ul>
+                            </li>
+                            <li class="dropdown dropdown-submenu">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown"> Passenger Waiting Time </a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'traffic:transit_waitingtime_byroute' %}"> Query by Route </a></li>
+                                    <li><a href="{% url 'traffic:transit_waitingtime_bystop' %}"> Query by Stop </a></li>
+                                    <li><a href="{% url 'traffic:transit_waitingtime_byOD' %}"> Query by OD Pair (In construction) </a></li>
+                                </ul>
+                            </li>
+                            <li><a href="{% url 'traffic:transit_stopskipping' %}">Stop Skipping</a></li>
+                            <li class="dropdown dropdown-submenu">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Bus Crowding Level</a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'traffic:transit_crowding' %}"> Statistics for Stops </a></li>
+                                    <li><a href="{% url 'traffic:transit_crowding_hm' %}"> Heat Map </a></li>
+                                </ul>
+                            </li>
+							<li class="dropdown dropdown-submenu">
+                                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Bus Bunching</a>
+                                <ul class="dropdown-menu">
+                                    <li><a href="{% url 'traffic:transit_busbunching' %}"> Statistics for Stops </a></li>
+                                    <li><a href="{% url 'traffic:transit_busbunching_hm' %}"> Heat Map </a></li>
+                                </ul>
+                            </li>
+							<li><a href="{% url 'traffic:transit_bustraveltime' %}">Bus Travel Time</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_travel %}
+                    <li id="nav-traveltime" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Travel <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{% url 'traffic:routing' %}">Trip Planner</a></li>
+							<li><a href="{% url 'traffic:travel_time' %}">Travel Time: Interstates</a></li>
+							<li><a href="{% url 'traffic:travel_time_new' %}">Travel Time: Corridors (2003-2012)</a></li>
+							<li><a href="{% url 'traffic:travel_time_corridorafter2013' %}">Travel Time: Corridors (2013-2015)</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_crash %}
+                    <li id="nav-crash"><a href="{% url 'traffic:crash' %}">Crashes</a></li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_incident %}
+                    <li id="nav-incidents"><a href="{% url 'traffic:incidents' %}">Incidents</a></li>
+                    {% endif %}
+
+                    {% if perms.traffic.perm_ev_station %}
+                    <li id="nav-evstation"><a href="{% url 'traffic:ev_stations' %}">EV Stations</a></li>
+                    {% endif %} -->
+
+                    {% if perms.traffic.perm_congestion %}
+                    <li id="nav-congestion" class="dropdown">
+                        <a href="#" class="dropdown-toggle" data-toggle="dropdown">Off-line traffic prediction <b class="caret"></b></a>
+                        <ul class="dropdown-menu">
+                            <li><a href="{% url 'traffic:congestion_task_request' %}">Task Request</a></li>
+			    <li><a href="{% url 'traffic:congestion_task_view' %}">Task View</a></li>
+                        </ul>
+                    </li>
+                    {% endif %}
+
+					{% if perms.traffic.perm_congestion %}
+					   <li id="nav-Congestion-online"><a href="{% url 'traffic:congestion_online' %}">On-line traffic management</a></li>
+					{% endif %}
+
+                 <!--    {% if perms.traffic.perm_twitter_map %}
+                    <li id="nav-twittermap"><a href="{% url 'traffic:twitter_map' %}">Twitter incident map</a></li>
+                    {% endif %} -->
+				</ul>
+			</div>
+		</nav>
+      <div id="lw" style="float: left;">
+          {% block content %}{% endblock %}
+      </div>
+
+      {% block map %}{% endblock %}
+
+      <div style="width:100%;height:2px;margin:0 auto;padding:0;background-color:#ddd;overflow:hidden;"></div>
+      <footer>
+       <p class="footer_content" style="text-align:center;padding-top: 10px">
+    <a href="http://www.cmu.edu/index.shtml" target="_blank">Carnegie Mellon University</a> | <a href="http://heinz.cmu.edu/index.aspx" target="_blank">Heinz College</a> | <a href="http://traffic21.heinz.cmu.edu/" target="_blank">Traffic21</a> | <a href="http://mac.heinz.cmu.edu/resource.html" target="_blank">Founding Source</a> |<a href="http://mac.heinz.cmu.edu/index.html#contact" target="_blank">Contact Us</a> </p>
+      </footer>
+
+	</div>
+</body>
+
+
+<script>
+    var url = window.location;
+	// Will only work if string in href matches with location
+{#	$('ul.nav a[href="'+ url +'"]').parent().addClass('active');#}
+    // Will also work for relative and absolute hrefs
+    $('ul.nav a').filter(function() {
+    	return this.href == url;
+	}).parent().addClass('active');
+    $('ul.nav a').filter(function() {
+    	return this.href == url;
+	}).parent().parent().parent().addClass('active');
+</script>
+
+{% block script %}{% endblock %}
+
+</html>

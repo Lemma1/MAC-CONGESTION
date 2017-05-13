@@ -1,0 +1,560 @@
+{% extends "traffic/base_congestion_online.html" %}
+
+{% load staticfiles %}
+
+{% block title %}
+MDAP - Traffic Congestion Task Request
+{% endblock %}
+
+{% block style %}
+    <link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/leaflet.timedimension.control.css'%}">
+    <link rel="stylesheet" href="http://cdn.kendostatic.com/2014.3.1411/styles/kendo.common.min.css" />
+    <link rel="stylesheet" href="http://cdn.kendostatic.com/2014.3.1411/styles/kendo.default.min.css" />
+    <style>
+        #updatetextbox{
+            background: #ffffff;
+            border: 2px solid;
+            border-color: #3f51b5;
+            height : 150px;
+            overflow: auto;
+        }
+        .form-control {
+            height: 50px;
+        }
+        .table>tbody>tr>th {
+            padding: 2px;
+        }
+    </style>
+{% endblock %}
+
+
+{% block content %}
+
+    <div id="user_input" class="well" style="height: 100%;overflow:auto;">
+        <div class="container" style="width: inherit">
+            <div class="row" id="title" style="margin-top:0px;text-align: center"><h3>Link Parameter Updates</h3></div>
+            <div align="left" class="row" id = "updatetextbox"></div>
+        </div><br>
+        <form>
+          <div class="form-group row">
+            <label for="datetimepicker1" class="col-sm-3 form-control-label">Start Time</label>
+            <div class="col-sm-9">
+              <input id="datetimepicker1" />
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="datetimepicker2" class="col-sm-3 form-control-label">End Time</label>
+            <div class="col-sm-9">
+              <input id="datetimepicker2" />
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="taskName" class="col-sm-3 form-control-label">Task Name</label>
+            <div class="col-sm-9">
+              <input class="form-control" id="taskName">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="unitTime" class="col-sm-3 form-control-label">Animation Resolution</label>
+            <div class="col-sm-9">
+              <input type="number" class="form-control" id="resolution" min="10" max="120">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="vehicleScalar" class="col-sm-3 form-control-label">Vehicle Scalar</label>
+            <div class="col-sm-9">
+              <input type="number" class="form-control" id="vehicleScalar" min="1">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="kShortestPath" class="col-sm-3 form-control-label">Kshortest Path</label>
+            <div class="col-sm-9">
+              <input type="number" class="form-control" id="kShortestPath" min="1">
+            </div>
+          </div>
+          <div class="form-group row">
+            <label for="dispersionFactor" class="col-sm-3 form-control-label">Dispersion Factor</label>
+            <div class="col-sm-9">
+              <input type="number" class="form-control" id="dispersionFactor" min="0" max="1">
+            </div>
+          </div>
+          <div class="form-group row">
+              <button type="button" class="btn btn-primary btn-lg btn-block" id="formSubmit">Submit</button>
+          </div>
+        </form>
+    </div>
+
+
+{% endblock %}
+
+{% block map %}
+<div id="map"></div>
+{% endblock %}
+
+
+
+{% block script %}
+<script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/leaflet.timedimension.src.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/iso8601.js' %}"></script>
+<script src="{% static 'traffic/kendo.all.min.js' %}"></script>
+<script>
+
+    function getZoomLevel(zoom) {
+      for (var i = 0; i < zoomLevels.length; i++) {
+          if (zoom >= zoomLevels[i]) {
+              return zoomLevels[i]
+          }
+      }
+    }
+
+    function getBlockSize(zoom) {
+      var zoomLevel = getZoomLevel(zoom)
+      if (zoomLevel == zoomLevels[0]) return [0.017, 0.011]
+      if (zoomLevel == zoomLevels[1]) return [0.017, 0.011]
+      if (zoomLevel == zoomLevels[2]) return [0.017*12, 0.011*12]
+    }
+
+    function hashLatLng(a, b, zoom) {
+
+      str = "" + Math.round(a*1000)/1000 + "|" + Math.round(b*1000)/1000 + "|" + getZoomLevel(zoom)
+      return str
+    }
+
+    var linkID = new Set();
+
+
+    // add an OpenStreetMap tile layer
+    var streetsL = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    });
+    var grayscale = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {maxZoom: 18,
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+    });
+
+    var map = L.map('map', {
+        center: [39.9526,-75.1652],
+        zoom: 16,
+        layers: [grayscale],
+    });
+
+    var baseMaps = {
+        "Grayscale": grayscale,
+        "Streets": streetsL
+    };
+
+    var control = L.control.layers(baseMaps, null, {collapsed: false}).addTo(map);
+    var linksLayer, linksTimeLayer;
+    var linksLayersCache = {}
+    var linksLayerGroup = L.layerGroup()
+
+    var newestRequestTime = new Date();
+    var linkInfoUpdates = [];
+
+    var speed = 65;
+    var zoomLevels = [15, 13, 0];
+    var speedWithZoom = [[0, 1, 5, 15, 20, 25, 35, 45, 55, 65],
+                         [35, 45, 55, 65],
+                         [45, 55, 65]];
+     var speedWithZoomPhilly = [-1,
+                                30,
+                                50]
+    var numlanesWithZoomPhilly = [1, 2, 3]
+    var excludeTypeWithZoom = [[],
+                               [],
+                               []];
+
+    $("#datetimepicker1").kendoTimePicker({
+        interval: 15
+    });
+    var datetimepicker1 = $("#datetimepicker1").data("kendoTimePicker");
+
+    $("#datetimepicker2").kendoTimePicker({
+        interval: 15
+    });
+    var datetimepicker2 = $("#datetimepicker2").data("kendoTimePicker");
+
+
+    shift_features_for_two_ways = function(data, zoomLevel) {
+      coordinate_shift = 1 / 5e4 * (19 - zoomLevel)
+      for (i in data.features) {
+        feature = data.features[i]
+        if (feature.properties.direction == 1) {
+          // Forward direction
+          shift_sign = 1
+        } else if (feature.properties.direction == -1) {
+          // Backward
+          shift_sign = -1
+        } else {
+          // Single lane
+          shift_sign = 0
+        }
+        link_coord_length = feature.geometry.coordinates.length
+        if (Math.abs(feature.geometry.coordinates[0][0] - feature.geometry.coordinates[link_coord_length-1][0]) >
+          Math.abs(feature.geometry.coordinates[0][1] - feature.geometry.coordinates[link_coord_length-1][1])) {
+            // Horizontal Link, shift in the vertical direction
+            for (i in feature.geometry.coordinates){
+              feature.geometry.coordinates[i][1] += shift_sign*coordinate_shift
+            }
+          } else {
+            // Vertical Link, shift in horizontal direction
+            for (i in feature.geometry.coordinates){
+              feature.geometry.coordinates[i][0] += shift_sign*coordinate_shift
+            }
+          }
+      }
+      return data
+    }
+
+    function onLinkEachFeature(feature, layer) {
+        var container = $('<div />');
+        var substitute_word = {
+          "no" : "Road Segment ID",
+          "v0prt" : "Free Flow Speed",
+          "tsysset" : "Vehicle Types",
+          "numlanes" : "Number of Lanes",
+          "county_10" : "County",
+          "hwy_num" : "Highway name",
+          "cap_1h" :  "Lane Capacity",
+          "length" : "Road Length"
+        }
+
+        container.html("<h3>Link Info Update</h3><br>");
+        var table = $("<table/>", {"class": "table table-striped"})
+        container.append(table)
+        for (key in feature.properties) {
+            table.append($("<tr>").html("<th>"+substitute_word[key]+"</th>" + "<th>" + feature.properties[key] + "</th>"))
+          }
+        container.append("Free Flow Speed:<br> <input type='number' name='speed' min='10' max='100'><br>Capacity:<br> <input type='number' name='cap' min='500'> <br>");
+        container.append("<input type='checkbox' id='cbox'> <label for='cbox'>Close this link</label> <br>");
+        container.append("<button id = 'btnSubmit' type = 'submit' class = 'btn btn-default'>Submit</button>");
+
+
+
+        container.on('click', '#cbox', function(){
+            if (this.checked) {
+                container.find('input[name=speed]').prop('disabled', true);
+                container.find('input[name=cap]').prop('disabled', true);
+            }
+            else {
+                container.find('input[name=speed]').prop('disabled', false);
+                container.find('input[name=cap]').prop('disabled', false);
+            }
+        });
+        container.on('click', '#btnSubmit', function(){
+            map.closePopup()
+            updateSingleLinkInfo(feature.properties.no,
+                                    container.find('#cbox').prop('checked'),
+                                    container.find('input[name=speed]').val(),
+                                    container.find('input[name=cap]').val());
+        });
+
+        updateSingleLinkInfo = function(id, disabled, speed, capacity) {
+            for (var i = 0; i < linkInfoUpdates.length; i++) {
+                if (linkInfoUpdates[i].ID == id) {
+                    linkInfoUpdates.splice(i, 1);
+                    break;
+                }
+            }
+            if (speed == "") speed = -1
+            if (capacity == "") capacity = -1
+            linkInfoUpdates.push({
+                "ID": id,
+                "closed": disabled,
+                "speed": speed,
+                "capacity": capacity
+            });
+            displayLinkInfoUpdates();
+        };
+
+        layer.bindPopup(container[0]);
+    }
+
+
+    var bounds = map.getBounds();
+
+
+     for (var i = 0; i < zoomLevels.length; i++) {
+         if (map.getZoom() >= zoomLevels[i]) {
+             numlanes = numlanesWithZoomPhilly[i];
+             break;
+         }
+     }
+     var blockWidth = getBlockSize(map.getZoom())[0]
+     var blockHeight = getBlockSize(map.getZoom())[1]
+
+    displayLinkInfoUpdates = function() {
+        var container = $('<ul class = "list-group"></ul>');
+
+        for (var i = 0; i < linkInfoUpdates.length; i++) {
+            update = linkInfoUpdates[i];
+
+            if (update.closed)
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.ID + ", closed");
+            else {
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.ID + ", speed: " + update.speed + ", capacity: " + update.capacity);
+            }
+            rem = function(me) {
+                $(me).parent().remove();
+                text = $(me).parent().html();
+                id = parseInt(text.substring(text.indexOf("id:") + 4, text.indexOf(",")));
+                for (var i = 0; i < linkInfoUpdates.length; i++) {
+                    if (linkInfoUpdates[i].ID == id) {
+                        linkInfoUpdates.splice(i, 1);
+                        break;
+                    }
+                }
+                return false;
+            };
+        }
+        $('#updatetextbox').html(container);
+    };
+
+
+    // reloadLink = function() {
+    //     bounds = map.getBounds();
+
+    //     for (var i = 0; i < zoomLevels.length; i++) {
+    //         if (map.getZoom() >= zoomLevels[i]) {
+    //             var numlanes = numlanesWithZoomPhilly[i];
+    //             break;
+    //         }
+    //     }
+    //     var layersToRemove = []
+    //     var zoom = map.getZoom()
+    //     var blockWidth = getBlockSize(zoom)[0]
+    //     var blockHeight = getBlockSize(zoom)[1]
+    //     for (var key in linksLayersCache) {
+    //       lag = key.split("|")[0]
+    //       lng = key.split("|")[1]
+    //       zoomLevel = key.split("|")[2]
+    //       if ((lat < bounds._southWest.lat - blockHeight/2 || lat > bounds._northEast.lat + blockHeight/2 ||
+    //           lng < bounds._southWest.lng - blockWidth/2 || lng > bounds._northEast.lng + blockWidth/2 ||
+    //           zoomLevel != getZoomLevel(map.getZoom())) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+    //             linksLayerGroup.removeLayer(linksLayersCache[key])
+    //           }
+    //     }
+    //     for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth;
+    //               lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth;
+    //               lng = lng + blockWidth) {
+    //       for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight;
+    //                 lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight;
+    //                 lat = lat + blockHeight) {
+    //                   var NE_lat = lat + blockHeight / 2
+    //                   var NE_lng = lng + blockWidth / 2
+    //                   var SW_lat = lat - blockHeight / 2
+    //                   var SW_lng = lng - blockWidth / 2
+    //                   if (linksLayersCache[hashLatLng(lat, lng, zoom)]) {
+    //                     // Layer is in cache
+    //                     var cachedLayer = linksLayersCache[hashLatLng(lat, lng, zoom)]
+    //                     if (!linksLayerGroup.hasLayer(cachedLayer)) {
+    //                       // Layer is not on map, put it on
+    //                       linksLayerGroup.addLayer(cachedLayer)
+    //                     }
+    //                   } else {
+    //                     // Layer is not in cache
+    //                     get_links = function(lat, lng, zoom){
+    //                       $.get("../get_links/", {numlanes:numlanes,
+    //                                                             NE_lat:NE_lat, NE_lng:NE_lng,
+    //                                                             SW_lat:SW_lat, SW_lng:SW_lng},
+    //                           function(data, textStatus) {
+
+    //                               displayData = shift_features_for_two_ways(data, map.getZoom())
+
+    //                               var linksLayer = L.geoJson(displayData, {style:{color:'green', weight:'3', opacity:'0.7'},
+    //                                                               onEachFeature: onLinkEachFeature});
+
+    //                               if (linksLayersCache[hashLatLng(lat, lng, zoom)]) return
+    //                               linksLayersCache[hashLatLng(lat, lng, zoom)] = linksLayer
+    //                               linksLayerGroup.addLayer(linksLayer)
+    //                           }, 'json');
+    //                       }
+    //                       get_links(lat, lng, zoom)
+    //                   }
+    //                 }
+    //               }
+    // };
+    // map.on('moveend', reloadLink);
+
+    function massageLinkLayer(data) {
+        let d =  {
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "EPSG:4326"
+                }
+            },
+            "type": "FeatureCollection",
+            "features": []
+        }
+        for (let i = 0; i < data.length; i++) {
+            d.features[i] = JSON.parse(data[i].fields.geom_str)[0];
+        }
+        return d;
+    }
+
+    var linksRequests = [];
+    var link_layers_to_load = [];
+    var loaded_link_ids = [];
+    var numlanes = 1;
+
+    reloadLinkLayer = function () {
+        console.log("reloadLinkLayer reloading", link_layers_to_load.length, "blocks");
+        for (let i = 0; i < link_layers_to_load.length; i++) {
+            let tuple = link_layers_to_load[i];
+            let displayData = tuple[0];
+            let hash = tuple[1];
+            console.log("loading link layer", displayData.features.length);
+            let linksLayer = L.vectorGrid.slicer(displayData, {
+                                    vectorTileLayerStyles: {
+                                        sliced: {
+                                            color: '#333333',
+                                            weight: '3',
+                                            opacity: '0.7'
+                                        },
+                                    },
+                                    maxZoom: 20,
+                                    interactive: true,
+                                    getFeatureId (f) { return f.properties.no; }
+                                });
+
+            linksLayer.on("click", () => console.log("link clicked"));
+            // linksLayer.on("click", onClickLink);
+
+
+            let link_ids = [];
+            linksLayersCache[hash] = linksLayer;
+            for (let link of displayData.features) {
+                loaded_link_ids.push(link.properties.no);
+                link_ids.push(link.properties.no);
+            }
+
+            linksLayer.link_ids = link_ids;
+
+            if (link_ids.length == 0) return
+
+            console.log("setting color");
+
+            linksLayerGroup.addLayer(linksLayer);
+
+            for (let id of link_ids) {
+                linksLayer.setFeatureStyle(id, { color: '#333333' });
+            }
+            console.log("colors loaded");
+        }
+        link_layers_to_load = [];
+    }
+
+    // This function removes and adds blocks of links
+    reloadLink = function() {
+        bounds = map.getBounds();
+
+        // Cancel all our old requests
+        for (let l of linksRequests) {
+            l.abort();
+        }
+        linksRequests = [];
+
+        for (var i = 0; i < zoomLevels.length; i++) {
+            if (map.getZoom() >= zoomLevels[i]) {
+                numlanes = numlanesWithZoomPhilly[i];
+                break;
+            }
+        }
+
+        var zoom = map.getZoom()
+        var blockWidth = getBlockSize(zoom)[0]
+        var blockHeight = getBlockSize(zoom)[1]
+        for (var key in linksLayersCache) {
+            lag = key.split("|")[0]
+            lng = key.split("|")[1]
+            zoomLevel = key.split("|")[2]
+            if ((lat < bounds._southWest.lat - blockHeight || lat > bounds._northEast.lat + blockHeight ||
+                    lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
+                    || zoomLevel != getZoomLevel(map.getZoom())) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                    // ) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                linksLayerGroup.removeLayer(linksLayersCache[key])
+            }
+        }
+        for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+            for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
+                var NE_lat = lat + blockHeight / 2
+                var NE_lng = lng + blockWidth / 2
+                var SW_lat = lat - blockHeight / 2
+                var SW_lng = lng - blockWidth / 2
+                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) {
+                    console.log('1');
+                    // Layer is in cache
+                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, zoom)]
+                    if (!linksLayerGroup.hasLayer(cachedLayer)) {
+                        //This is to prevent loading layers with previous color
+                            // cachedLayer.eachLayer(function(layer) {
+                            //     layer.setStyle(function(feature) {
+                            //         return {
+                            //             color: "#d3d3d3"
+                            //         }
+                            //     })
+                            // })
+                        // cachedLayer.setFeatureStyle(function (feature) {
+                        //     return {
+                        //         color : "#d3d3d3"
+                        //     }
+                        // })
+                        linksLayerGroup.addLayer(cachedLayer)
+                    }
+                } else {
+                    console.log('2');
+                    // Layer is not in cache
+                    (function(lat, lng, zoom) {
+
+                        // Save the link request so we can cancel#333333 later
+                        let req = $.get("../get_links/", {
+                                numlanes: numlanes,
+                                NE_lat: NE_lat,
+                                NE_lng: NE_lng,
+                                SW_lat: SW_lat,
+                                SW_lng: SW_lng
+                            },
+                            function(data, textStatus) {
+                                data = massageLinkLayer(data);
+
+                                let displayData = shift_features_for_two_ways(data, map.getZoom())
+                                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) return
+                                link_layers_to_load.push([displayData, hashLatLng(lat, lng, zoom)])
+                                console.log("links loaded", displayData.features.length);
+                            }, 'json');
+                        linksRequests.push(req);
+                    })(lat, lng, zoom)
+                }
+            }
+        }
+        $.when.apply(null, linksRequests).done(reloadLinkLayer);
+    };
+
+    linksLayerGroup.addTo(map);
+    reloadLink();
+    map.on('moveend', reloadLink);
+
+
+    $("#formSubmit").click(function(){
+        $.post("../submit_link_update/",
+                {
+                    "linkInfoUpdates": JSON.stringify(linkInfoUpdates),
+                    "startTime": datetimepicker1.value().toString(),
+                    "endTime": datetimepicker2.value().toString(),
+                    "taskName": $("#taskName").val(),
+                    "resolution": parseInt($("#resolution").val()),
+                    "vehicleScalar": parseInt($("#vehicleScalar").val()),
+                    "kShortestPath": parseInt($("#kShortestPath").val()),
+                    "dispersionFactor": parseInt($("#dispersionFactor").val()),
+                    'csrfmiddlewaretoken': '{{ csrf_token }}',
+                }, function(data, status) {
+                    alert(data);
+                })
+    })
+
+
+  </script>
+{% endblock %}

@@ -1,0 +1,1434 @@
+{% extends "traffic/base.html" %}
+
+{% load staticfiles %}
+
+{% block title %}
+    MDAP - Parking
+{% endblock %}
+
+{% block style %}
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+    <link rel="stylesheet" href="{% static 'traffic/css/kendo.common-material.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'traffic/css/kendo.material.min.css' %}" />
+    <link rel="stylesheet" href="{% static 'traffic/style_closure.css' %}">
+    <link rel="stylesheet" href="{% static 'traffic/slider/css/slider.css' %}" />
+    <style>
+        #overlaycon {
+            height: 89vh;
+        }
+        #map{
+            z-index: 100;
+            position: relative;
+        }
+        #chart {
+            background: #ffffff;
+            width:40%;
+            border-radius: 3px;
+            box-shadow:8px 8px 13px #CCCCCC;
+            position: relative;
+            opacity: 0.93;
+            top: -89vh;
+            left: 320px;
+            z-index: 10;
+        }
+
+        #chart1 {
+            height:150px;
+            width:100%;
+            opacity: 0.93;
+            position: relative;
+            left: 5%;
+            z-index: 11;
+            width: 90%;
+        }
+        #chart2 {
+            height:150px;
+            width:100%;
+            margin-top: 5px;
+            opacity: 0.93;
+            position: relative;
+            left: 5%;
+            z-index: 11;
+            width: 90%;
+        }
+    #p1{
+            background: #ffffff;
+            border: 2px solid;
+            border-radius: 10px;
+            border-color: #3f51b5;
+            position: relative;
+            opacity: 0.93;
+            top: 0px;
+            margin-bottom: -8px;
+            margin-left:1%;
+            height : 120px;
+            text-align: center;
+            width : 97%;
+            z-index: 10;
+    }
+    .legend1 {
+        line-height: 18px;
+        width:250px;
+        height:1px;
+        top: -70px;
+        left: 40px;
+        opacity: 1;
+    }
+    .legend {
+        line-height: 18px;
+        height:60px;
+        width:150px;
+        right: -10px;
+        bottom: -10px;
+        border-radius: 5px;
+        background: white;
+        box-shadow: -2px -2px 2px #CCCCCC;
+        opacity: 0.9;
+    }
+    .legend i {
+        width: 28px;
+        height: 7px;
+        float: left;
+        border-radius: 3px;
+        margin-right: 8px;
+        margin-left: 7px;
+        margin-top: 7px;
+        opacity: 0.9;
+    }
+    .legend j {
+        width: 28px;
+        height: 7px;
+        float: left;
+        border-radius: 3px;
+        margin-right: 8px;
+        margin-left: 7px;
+        margin-top: 5px;
+        opacity: 0.9;
+    }.legend k {
+        width: 28px;
+        height: 7px;
+        float: left;
+        border-radius: 3px;
+        margin-right: 8px;
+        margin-left: 7px;
+        margin-top: 5px;
+        opacity: 0.9;
+    }
+    </style>
+    <link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+    <link rel="stylesheet" href="{% static 'traffic/jquery.jqplot.min.css' %}">
+    <style>html {
+        font-size: 12px;
+        font-family: Arial, Helvetica, sans-serif;
+    }</style>
+    <style>
+        .slider.slider-horizontal {
+            width: 240px;
+            height: 18px;
+        }
+        .slider-selection {
+  background-image: -moz-linear-gradient(top, #FFA1A1, #FFA1A1);
+  background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#FFA1A1), to(#FFA1A1));
+  background-image: -webkit-linear-gradient(top, #FFA1A1, #FFA1A1);
+  background-image: -o-linear-gradient(top, #FFA1A1, #FFA1A1);
+  background-image: linear-gradient(to bottom, #FFA1A1, #FFA1A1);
+}
+    .slider-handle {
+        background-color: #FF6262;
+        background-image: -moz-linear-gradient(top, #FF6262, #FF6262);
+        background-image: -webkit-gradient(linear, 0 0, 0 100%, from(#FF6262), to(#FF6262));
+        background-image: -webkit-linear-gradient(top, #FF6262, #FF6262);
+        background-image: -o-linear-gradient(top, #FF6262, #FF6262);
+        background-image: linear-gradient(to bottom, #FF6262, #FF6262);
+    }</style>
+
+
+{% endblock %}
+
+{% block content %}
+
+
+    <div id="user_input" class="well" style="height: 100%;overflow:auto;">
+        <div class="container" style="width: inherit">
+            <div class="row" id="title" style="margin-top:0px;text-align: center"><h3>Parking info</h3></div>
+                        <div align="mid" class="row" id="p1"><h5>Please wait while fetching data from server....  Typically, this process takes about 30 seconds.</h5><br><br></div>
+
+            <div class="row" id ="plzwait" style="margin-top:10px;margin-right:auto;margin-left: 0px;"><h5><b>Select date and time range for inquiry: </b></h5></div>
+            <div id="datepick">
+                <div id="to-do" align="left" style="width:120%;margin-left: -15px;">
+                    <label for="datepicker"><h6><i>From: </i></h6></label> <input style = "width : 120px"  id="datepicker"/>
+                    <label for="datepicker1"><h6><i>To: </i></h6></label> <input style = "width : 120px" id="datepicker1"/>
+                </div>
+            </div>
+            <div class="row" style="margin-top:10px;margin-right:auto;margin-left: 0px;"></div>
+            <div id="timepick">
+                <div id="to-do" align="left" style="width:120%;margin-left: -15px;">
+                    <label for="timepicker"><h6><i>From: </i></h6></label> <input style = "width : 120px"  id="timepicker"/>
+                    <label for="timepicker1"><h6><i>To: </i></h6></label> <input style = "width : 120px" id="timepicker1"/>
+                </div>
+            </div>
+            <div id = "weekday">
+                <h6><b>Select weekdays for inquiry:</b></h6>
+                <form action="form_action.asp"  style="margin-left: -10px; margin-right: -20px;">
+                    <h6>
+                    <label><input type="checkbox" name="vehicle" value="Sun" checked="True"> Sun </label>
+                    <label><input type="checkbox" name="vehicle" value="Mon" checked="True"> Mon </label>
+                    <label><input type="checkbox" name="vehicle" value="Tue" checked="True"> Tue </label>
+                    <label><input type="checkbox" name="vehicle" value="Wed" checked="True"> Wed </label>
+                    <label><input type="checkbox" name="vehicle" value="Thr" checked="True"> Thr </label>
+                    <label><input type="checkbox" name="vehicle" value="Fri" checked="True"> Fri </label>
+                    <label><input type="checkbox" name="vehicle" value="Sat" checked="True"> Sat </label>
+
+                    </h6>
+                </form>
+            </div>
+            <a type="button" class="btn btn-purple" id="check_btn" align="middle" style="margin-top:0px;width:90%;">
+                <span class="glyphicon glyphicon-search"> </span> &nbsp; Inquiry </a> <br>
+            {#<input type="button" value="Update" />#}
+            <div align="middle" style="height: 1px;  text-align: left; left:-10px;"><span style=" top: -2px;"><h5>
+                -----------------------------Or-----------------------------</h5></span></div>
+            <br>
+            <div class="row" id="future22" style="margin-top:10px;margin-left:-10px;" align="left"><h5><b> Check future
+                occupancy: </b><i>Pick a delay </i></h5></div>
+            <input  style="width: 100%" id="rangebar" type="text" class="span" value="" data-slider-value="20" data-slider-min="0" data-slider-max="90" data-slider-step="10"/>
+            <a href="#" type="button" class="btn btn-red" id="reset_btn"
+               style="margin-top:10px; margin-right:10px;width:90%;">
+                <span class="glyphicon glyphicon-search" id='future'> </span> &nbsp; Check 20 min later </a> <br>
+            <br>
+
+        </div>
+    </div>
+{% endblock %}
+
+{% block map %}
+
+    <div id='overlaycon' >
+        <div id = 'foo'></div>
+        <div id="map"  style="opacity: 1"></div>
+        <div id="chart" style="display: none">
+            <div id="chart1" ></div>
+            <div id="chart2" ></div>
+        </div>
+    </div>
+{% endblock %}
+
+
+{% block script %}
+
+    <script type="text/javascript" src="{% static 'traffic/js/kendo.all.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'traffic/terminals_geoJSON.js' %}"></script>
+    <script type="text/javascript" src="{% static 'traffic/jquery.jqplot.min.js' %}"></script>
+    <!--<script type="text/javascript" src="{% static 'traffic/jqplot.cursor.js' %}"></script>-->
+    <script type="text/javascript" src="{% static 'traffic/jqplot.dateAxisRenderer.min.js' %}"></script>
+    <script type="text/javascript" src="{% static 'traffic/spinner.js' %}"></script>
+    <script type="text/javascript" src="{% static 'traffic/slider/js/slider_park.js' %}"></script>
+
+
+    <script>
+        // create a map in the "map" div, set the view to a given place and zoom
+        //////////////////////////////data picker
+
+            //create client
+
+        var datime = new Date(0);
+        var mm;
+        var yy;
+        var dd;
+        var weekday;
+        var hour;
+        var minu;
+        ///////////
+        var datime1 = new Date(0);
+        var mm1;
+        var yy1;
+        var dd1;
+        var weekday1;
+        var hour1;
+        var minu1;
+        var sliderminu = 10;
+        ////////////
+        var wkdy = [1,1,1,1,1,1,1]
+        ////////////
+        var inquirytype;//0: one slot; 1: in one day; 2 multidays
+        var streetLayer, truckLayer;
+        var terminalLayer, lotLayer;
+        var streets;
+        var map;
+        ///////
+        var shifted = false;
+        var combinemod = false;
+        var highlight = [];
+        var highvalues = new Array(145).join('0').split('').map(parseFloat);
+        var highcount = 0;
+        var suggestRD = 'NULL';
+        var suggRDcnt = 1000000;
+        var mouseposi = [0,0]; //detect click but not drag
+        var suggestRDfe; //to store the feature of the road.
+        var underlayer;//To store under later
+        var spinneropts;
+        var spinner;
+
+        function updateime() {
+            var sameday =true;
+            var d = new Date($("#datepicker").data("kendoDatePicker").value());
+            if(d.getYear() != datime.getYear() || d.getMonth() != datime.getMonth() || d.getDate() != datime.getDate()) {
+                sameday = false;
+                mm = d.getMonth();
+                yy = d.getFullYear();
+                dd = d.getDate();
+                var day = d.getDay();
+                if (day == 0 || day == 6) {
+                    weekday = 0;
+                }
+                else weekday = 1;
+            }
+            d = new Date($("#timepicker").data("kendoTimePicker").value())
+            hour = d.getHours();
+            minu = d.getMinutes();
+            datime = new Date(yy, mm, dd, hour, minu, 0, 0);
+            ///////////////////////
+            d = new Date($("#datepicker1").data("kendoDatePicker").value());
+             if(d.getYear() != datime1.getYear() || d.getMonth() != datime1.getMonth() || d.getDate() != datime1.getDate()) {
+                 sameday = false;
+                 mm1 = d.getMonth();
+                 yy1 = d.getFullYear();
+                 dd1 = d.getDate();
+                 day = d.getDay();
+                 if (day == 0 || day == 6) {
+                     weekday1 = 0;
+                 }
+                 else weekday1 = 1;
+             }
+            d = new Date($("#timepicker1").data("kendoTimePicker").value())
+            hour1 = d.getHours();
+            minu1 = d.getMinutes();
+            datime1 = new Date(yy1, mm1, dd1, hour1, minu1, 0, 0);
+            if (yy == yy1 && mm == mm1 && dd == dd1 && hour == hour1 && minu == minu1) {
+                inquirytype = 0;
+            }
+
+            else if (yy != yy1 || mm != mm1 || dd != dd1) {
+                inquirytype = 2;
+            }
+            else {
+                inquirytype = 1;
+            }
+            /////
+            var wkdynew = document.forms[0];
+            var wkdysnew = [0, 0, 0, 0, 0, 0, 0]
+            var i;
+            for (i = 0; i < wkdynew.length; i++) {
+                if (wkdynew[i].checked) {
+                    wkdysnew[i] = 1;
+                }
+            }
+            if(wkdysnew !=wkdy){
+                sameday = false;
+            }
+            wkdy = wkdysnew;
+            //////
+            return sameday;
+        }
+
+        $(document).on('keydown', function(e){
+            shifted = e.shiftKey;
+            if(e.keyCode == 13 && combinemod){///enter is pressed
+            //////////////////plot the summed map
+                info.updatemulti(1);
+                var element = document.getElementById('map');
+                        element.style.zIndex = "1";
+                        n = 144;
+                        var line = [];
+                        for (var i = 48; i < 109; i++) {
+                            var hour = Math.floor(i / 6);
+                            var minute = (i % 6) * 10;
+                            if (minute == 0) {
+                                minute = "00";
+                            }
+                            var point = ["" + hour + ":" + minute, highvalues[i]];
+                            line.push(point);
+                        }
+                        //check if the time period is in one day
+                        var d = datime;
+                        var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        d = datime1;
+                        var index1 = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        var plotcontent = [line.slice(0, index), line.slice(index - 1)];
+                        index = Math.max(0, Math.min(60, index));
+                        index1 = Math.max(0, Math.min(60, index1));
+
+                        if (inquirytype > 0) {
+                            plotcontent = [line.slice(0, index+1), line.slice(index1), line.slice(index, index1+1)];
+                        }
+                        if ((index == 0 || index == 60)&&(index1 == 0 || index1 == 60)&&(index == index1) ) {
+                            console.log("case1");
+                            index = 1;
+                            plotcontent = [line.slice(0, index), line.slice(index-1)];
+                        }
+                        var element = document.getElementById('chart2');
+                        element.style.display = 'none';
+                        $.jqplot('chart1', plotcontent, {
+                            series: [{lineWidth: 3, markerOptions: {show: false}},{lineWidth: 5, markerOptions: {show: false}},{lineWidth: 6, markerOptions: {show: false}}],
+                            title: 'Average Occupancy estimation of selected streets',
+                            axes: {
+                                xaxis: {renderer: $.jqplot.DateAxisRenderer, tickOptions: {formatString: '%H:%M'}},
+                                yaxis: {min: 0, max: 1}
+                            },
+
+                            grid: {
+                                drawGridLines: true,        // wether to draw lines across the grid or not.
+                                gridLineColor: '#cccccc',    // *Color of the grid lines.
+                                background: '#FFFFFF'
+                            },
+                            seriesColors: ["#999598", "#3f51b5", "#FF0066"]
+
+                        });
+                //////////////////////////////////
+                var layer = suggestRDfe.target;
+
+                var geojs = suggestRDfe.target.toGeoJSON()
+                underlayer = L.geoJson(geojs, {
+                style: {
+                    weight: 13,
+                    color: '#805DFC',
+                    opacity: 1
+                }}).addTo(map);
+               layer.setStyle({
+                    //lineCap: 'square',
+                    opacity: 0.9,
+                    weight: 7
+                });
+                if (!L.Browser.ie && !L.Browser.opera) {
+                    layer.bringToFront();
+                }
+                combinemod = false;
+                highlight = [];
+                highvalues = new Array(145).join('0').split('').map(parseFloat);
+                highcount = 0;
+            }
+            else if(e.keyCode == 13){ //empty plot
+                $("#chart1").empty();
+                $("#chart2").empty();
+                if(underlayer){
+                    map.removeLayer(underlayer);
+                };
+                var element = document.getElementById('map');
+                element.style.zIndex = "100";
+                highlight = [];
+                highvalues = new Array(145).join('0').split('').map(parseFloat);
+                highcount = 0;
+                suggestRD = 'NULL';
+                suggRDcnt = 1000000;
+                document.getElementById("p1").innerHTML =  '<h5>Hover over a street to check occupancy</h5><br><br>';
+                showOcp();
+            }
+        });
+
+
+
+        $(document).on('keyup', function(e){
+            shifted = e.shiftKey
+        });
+        var mapelement = document.getElementById('map');
+        mapelement.addEventListener("mousedown", function(e){
+            mouseposi = [e.clientX, e.clientY]
+        }, false);
+         mapelement.addEventListener("click", function(e){
+              console.log("[" + map.mouseEventToLatLng(e).lat + "," + map.mouseEventToLatLng(e).lng+"]");
+            var diff = Math.abs(mouseposi[0]- e.clientX)+Math.abs(mouseposi[1]- e.clientY);
+            if(diff<6) {
+                $("#chart1").empty();
+                $("#chart2").empty();
+                if(underlayer){
+                    map.removeLayer(underlayer);
+                };
+                var element = document.getElementById('map');
+                element.style.zIndex = "100";
+                combinemod = false;
+                highlight = [];
+                highvalues = new Array(145).join('0').split('').map(parseFloat);
+                highcount = 0;
+                suggestRD = 'NULL';
+                suggRDcnt = 1000000;
+                document.getElementById("p1").innerHTML = '<h5>Hover over a street to check occupancy</h5><br><br>';
+                showOcp();
+            }
+        })
+        $('#check_btn').click(function () {
+            var same = updateime();
+            $("#chart1").empty();
+            $("#chart2").empty();
+            var target = document.getElementById('map');
+            target.style.zIndex = "100";
+            console.log(same);
+
+            if(!same) {
+                target.style.opacity = '0.2';
+                target = document.getElementById('foo');
+                target.style.zIndex = "110";
+                spinner = new Spinner(spinneropts).spin(target);
+                target = document.getElementById('chart');
+                target.style.opacity= '0';
+                $.get("../parking_geoJSON_prediction/", {
+                    pd: dd,
+                    pm: mm,
+                    py: yy,
+                    pd1: dd1,
+                    pm1: mm1,
+                    py1: yy1,
+                    'wkdys': wkdy  //// Sun -Sat
+                }, function (data, textStatus) {
+                    streets = data;
+                    showOcp();
+                /////////////spinner
+                spinner.stop();
+                var target = document.getElementById('foo');
+                target.style.zIndex = "1";
+                var mapper = document.getElementById('map');
+                mapper.style.opacity = '1';
+                target = document.getElementById('chart');
+                target.style.opacity= '1';
+                ////////////////////
+                }, "json");
+            }
+            updatelot();
+        });
+
+        $('#reset_btn').click(function () {
+            $("#chart1").empty();
+            $("#chart2").empty();
+            var offset = sliderminu;
+            var datetime = new Date()
+            var timeinsec = datetime.getTime()
+            datetime = new Date(timeinsec + offset * 60000)
+            $("#datepicker").data("kendoDatePicker").value(datetime);
+            $("#datepicker1").data("kendoDatePicker").value(datetime);
+            $("#timepicker").data("kendoTimePicker").value(datetime);
+            $("#timepicker1").data("kendoTimePicker").value(datetime);
+            var same = updateime();
+
+            var target = document.getElementById('map');
+            target.style.zIndex = "100";
+            console.log(same);
+
+            if(!same) {
+                target.style.opacity = '0.2';
+                target = document.getElementById('foo');
+                target.style.zIndex = "110";
+                spinner = new Spinner(spinneropts).spin(target);
+                target = document.getElementById('chart');
+                target.style.opacity= '0';
+                $.get("../parking_geoJSON_prediction/", {
+                    pd: dd,
+                    pm: mm,
+                    py: yy,
+                    pd1: dd,
+                    pm1: mm,
+                    py1: yy,
+                    'wkdys': wkdy  //// Sun -Sat
+
+                }, function (data, textStatus) {
+                    streets = data;
+                    //$('#txtHint').text(terminals);
+                    showOcp();
+                                   /////////////spinner
+                spinner.stop();
+                var target = document.getElementById('foo');
+                target.style.zIndex = "1";
+                var mapper = document.getElementById('map');
+                mapper.style.opacity = '1';
+                target = document.getElementById('chart');
+                target.style.opacity= '1';
+                ////////////////////
+                }, "json");
+            }
+            updatelot();
+        });
+
+
+        function showValue(newValue) {
+            document.getElementById("reset_btn").innerHTML = "<span class='glyphicon glyphicon-search' > </span> &nbsp; Check " + newValue + " min later"
+        }
+
+        function changeclk(newValue) {
+            document.getElementById("reset_btn").innerHTML = "<span class='glyphicon glyphicon-search' > </span> &nbsp; Check " + newValue + " min later"
+            var datetime = new Date()
+            var timeinsec = datetime.getTime()
+            datetime = new Date(timeinsec + newValue * 60000)
+            $("#datepicker").data("kendoDatePicker").value(datetime);
+            $("#datepicker1").data("kendoDatePicker").value(datetime);
+            $("#timepicker").data("kendoTimePicker").value(datetime);
+            $("#timepicker1").data("kendoTimePicker").value(datetime);
+            updateime();
+        }
+
+        $(document).ready(function () {
+            ////////////date
+
+            ///////////////////
+            var tmppp = document.forms[0];
+            var i;
+            for (i = 0; i < 7; i++) {
+                tmppp[i].disabled = true;
+            }
+
+            /////////////////slider:
+            $("#rangebar").slider({
+                tooltip: 'show'
+            });
+            ////////////////////time picker
+
+            $("#datepicker").kendoDatePicker({
+                value: new Date()
+            });
+            var datepicker = $("#datepicker").data("kendoDatePicker");
+            datepicker.bind("change", function() {
+                var early = this.value();
+                var late = new Date($("#datepicker1").data("kendoDatePicker").value());
+
+                if (early > late){
+                    $("#datepicker1").data("kendoDatePicker").value(early);
+                }
+                late = new Date($("#datepicker1").data("kendoDatePicker").value());
+                if (early.getDate() != late.getDate() || early.getFullYear() != late.getFullYear() ||early.getMonth()!=late.getMonth()) {
+                    var tmp = document.forms[0];
+                    var i;
+                    for (i = 0; i < 7; i++) {
+                        tmp[i].disabled = false;
+                    };
+                } else {
+                    var tmp = document.forms[0];
+                    var i;
+                    for (i = 0; i < 7; i++) {
+                        tmp[i].disabled = true;
+                    };
+                };
+            });
+
+            $("#datepicker1").kendoDatePicker({
+                value: new Date()
+            });
+            var datepicker1 = $("#datepicker1").data("kendoDatePicker");
+            datepicker1.bind("change", function() {
+                var late = this.value();
+                var early = new Date($("#datepicker").data("kendoDatePicker").value());
+                if (early > late){
+                    $("#datepicker").data("kendoDatePicker").value(late);
+                }
+                early = new Date($("#datepicker").data("kendoDatePicker").value());
+                if (early.getDate() != late.getDate() || early.getFullYear() != late.getFullYear() ||early.getMonth()!=late.getMonth()) {
+                    var tmp = document.forms[0];
+                    var i;
+                    for (i = 0; i < 7; i++) {
+                        tmp[i].disabled = false;
+                    };
+                } else {
+                    var tmp = document.forms[0];
+                    var i;
+                    for (i = 0; i < 7; i++) {
+                        tmp[i].disabled = true;
+                    };
+                };
+            });
+            /////////////time
+            $("#timepicker").kendoTimePicker({
+                value: new Date(),
+                max: new Date(2000, 0, 1, 8, 0, 0),
+                max: new Date(2000, 0, 1, 22, 0, 0),
+                interval: 10
+            });
+            var Timepicker = $("#timepicker").data("kendoTimePicker");
+            Timepicker.bind("change", function() {
+                var early = this.value();
+                var late = new Date($("#timepicker1").data("kendoTimePicker").value());
+                if (early > late){
+                    $("#timepicker1").data("kendoTimePicker").value(early);
+                }
+            });
+
+            $("#timepicker1").kendoTimePicker({
+                value: new Date(),
+                max: new Date(2000, 0, 1, 8, 0, 0),
+                max: new Date(2000, 0, 1, 22, 0, 0),
+                interval: 10
+
+            });
+            var timepicker1 = $("#timepicker1").data("kendoTimePicker");
+            timepicker1.bind("change", function() {
+                var late = this.value();
+                var early = new Date($("#timepicker").data("kendoTimePicker").value());
+                if (early > late){
+                    $("#timepicker").data("kendoTimePicker").value(late);
+                }
+            });
+            updateime();
+
+            /////////////spinner
+             spinneropts = {
+                 lines: 13, // The number of lines to draw
+                 length: 20, // The length of each line
+                 width: 10, // The line thickness
+                 radius: 30, // The radius of the inner circle
+                 corners: 1, // Corner roundness (0..1)
+                 rotate: 0, // The rotation offset
+                 direction: 1, // 1: clockwise, -1: counterclockwise
+                 color: '#000', // #rgb or #rrggbb or array of colors
+                 speed: 1, // Rounds per second
+                 trail: 60, // Afterglow percentage
+                 shadow: false, // Whether to render a shadow
+                 hwaccel: false, // Whether to use hardware acceleration
+                 className: 'spinner', // The CSS class to assign to the spinner
+                 zIndex: 2e9, // The z-index (defaults to 2000000000)
+                 top: '50%', // Top position relative to parent
+                 left: '63%' // Left position relative to parent
+             };
+            var target = document.getElementById('foo');
+            spinner = new Spinner(spinneropts).spin(target);
+            target.style.zIndex = "110";
+            var target = document.getElementById('map');
+            target.style.opacity = '0.2';
+            target = document.getElementById('chart');
+            target.style.opacity= '0';
+            target.style.display = '';
+            ////////////////////
+
+            $.get("../parking_geoJSON_prediction/", {
+                pd: dd, pm: mm, py:yy, pd1: dd, pm1: mm, py1:yy,
+                'wkdys': [1, 2, 3, 5, 6, 7, 8]  //// Sun -Sat
+            }, function (data, textStatus) {
+                streets = data;
+                //$('#txtHint').text(terminals);
+                showOcp();
+               /////////////spinner
+                spinner.stop();
+                var target = document.getElementById('foo');
+                target.style.zIndex = "1";
+                var mapper = document.getElementById('map');
+                mapper.style.opacity = '1';
+                target = document.getElementById('chart');
+                target.style.opacity= '1';
+                ////////////////////
+            }, "json");
+
+            terminalLayer = L.geoJson(terminals, {
+            pointToLayer: function (feature, latlng) {
+                return L.circleMarker(latlng, parkingMarkerStyle());
+            },
+            onEachFeature: function (feature, layer) {
+                if (feature.properties && feature.properties.street) {
+                    layer.bindPopup("Street : " + feature.properties.street + '<br>'+"Meter ID : " + feature.properties.terminalID);
+                }
+            }
+            }).addTo(map);
+
+            var legend1 = L.control({position: 'topleft'});
+            legend1.onAdd = function () {
+            var div = L.DomUtil.create('div', 'info legend1');
+            div.innerHTML = "<strong><h5><b>Tip: <br>Shift click to select multiple streets. <br>Press enter to view summary. </b></h5></strong> <br><br>";
+            return div;
+            };
+            legend1.addTo(map);
+
+            var legend = L.control({position: 'bottomright'});
+            legend.onAdd = function () {
+                var div = L.DomUtil.create('div', 'info legend');
+                div.innerHTML += '<i style="background:green' + '"></i> ' + "Occupancy &le; 60%"+ "<br>";
+                div.innerHTML += '<j style="background:yellow' +  '"></j> ' + "Occupancy &le; 85%"+ "<br>";
+                div.innerHTML += '<k style="background:red' +  '"></k> ' + "Occupancy > 85%"+ "<br>";
+
+                return div;
+            };
+            legend.addTo(map);
+
+            control.addOverlay(terminalLayer, 'Terminals');
+            updatelot();
+
+
+        });
+
+        // add an OpenStreetMap tile layer
+        var streetsL = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+        });
+        var grayscale = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {maxZoom: 18,
+            attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+        });
+{#        var grayscale = L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {#}
+{#                    maxZoom: 18,#}
+{#                    attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +#}
+{#                    '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +#}
+{#                    'Imagery © <a href="http://mapbox.com">Mapbox</a>',#}
+{#                    id: 'examples.map-20v6611k'#}
+{#                });#}
+
+        //map = L.map('map').setView([40.4407937, -80.0029874], 16);
+        var map = L.map('map', {
+            center: [40.4421786943,-79.9767780303],
+            zoom: 14,
+            layers: [grayscale]
+        });
+
+        var baseMaps = {
+            "Grayscale": grayscale,
+            "Streets": streetsL
+        };
+
+        /*var overlayMaps = {
+         "Parking Terminals": terminalLayer
+         };*/
+
+        var control = L.congetrol.layers(baseMaps, null, {collapsed: false}).addTo(map);
+
+        function parkingMarkerStyle() {
+            return {
+                radius: 3,
+                fillColor: "#3f51b5",
+                color: "#3f51b5",
+                weight: 1,
+                opacity: 0.9,
+                fillOpacity: 0.9
+            };
+        }
+
+        var info = L.control();
+
+        $(function() {
+
+        info.update = function (props) {
+            var content = '< 10%'
+            var ratecontent = "<br> Current Rate:<b> $0/hr </b>"
+            if (props) {
+                var cell = hour * 6 + parseInt(minu / 10);
+                if (cell > 48 && cell < 108) {
+                    content = ('' + props.occupancy[cell] * 100).substr(0, 5) + '%'
+                }
+                ratecontent = "<br> Current Rate:<b> $"+ props.rate[(hour*2+parseInt(minu / 30))]+"/hr </b>"
+            }
+            var hourr = (hour < 10 ? "0" : "") + hour;
+            var min = (minu < 10 ? "0" : "") + minu;
+            var hourr1 = (hour1 < 10 ? "0" : "") + hour1;
+            var min1 = (minu1 < 10 ? "0" : "") + minu1;
+
+            var timecontent = "";
+            if (inquirytype == 0){
+                timecontent = " <br>Time of inquiry:<b> " + hourr + ":" + min+ ' </b><br>Estimated Occupancy: <b>'
+            }
+
+            else if (inquirytype == 2){
+                timecontent = " <br>Date range of inquiry:<b><br> " + yy+'/'+mm+'/'+dd + " to "  + + yy1+'/'+mm1+'/'+dd1+ " <br></b>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated Occupancy: <b>'
+            }
+
+            else {
+                timecontent = " <br>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated average Occupancy: <b>'
+                if (props) {
+                    var cell = hour * 6 + parseInt(minu / 10);
+                    var cell1 = hour1 * 6 + parseInt(minu1 / 10);
+                    var cnt = cell1 - cell +1;
+                    var sum = 0
+                    for (var i = cell; i <=cell1; i++){
+                        sum+= props.occupancy[cell];
+                    }
+                    sum = sum*100/cnt
+                    content = ('' + sum).substr(0, 5) + '%'
+                }
+            }
+            var element = document.getElementById('map');
+            if (element.style.zIndex != "1") {//deprecated if
+                document.getElementById("p1").innerHTML = (props ?
+                '<b>' + props.street + '</b>' +  timecontent + content +'</b>'+ ratecontent
+                        : '<h5>Hover over a street to check occupancy</h5><br><br>');
+            }
+        };
+
+        });
+
+
+
+        info.updatemulti = function (e) {
+            var content = '< 10%'
+            if (true) {
+                var cell = hour * 6 + parseInt(minu / 10);
+                if (cell > 48 && cell < 108) {
+                    content = ('' + highvalues[cell] * 100).substr(0, 5) + '%'
+                }
+            }
+            var hourr = (hour < 10 ? "0" : "") + hour;
+            var min = (minu < 10 ? "0" : "") + minu;
+            var hourr1 = (hour1 < 10 ? "0" : "") + hour1;
+            var min1 = (minu1 < 10 ? "0" : "") + minu1;
+
+            var timecontent = " <br><b>Time range of inquiry:</b> ";
+            if (inquirytype == 0){
+                timecontent = " <br>Time of inquiry:<b> " + hourr + ":" + min+ ' </b><br>Estimated Average Occupancy: <b>'
+            }
+
+            else if (inquirytype == 2){
+                timecontent = " <br>Date range of inquiry:<b><br> " + yy+'/'+mm+'/'+dd + " to "  + + yy1+'/'+mm1+'/'+dd1+ " <br></b>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated Occupancy: <b>'
+            }
+
+            else {
+                timecontent = " <br>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated Average Occupancy: <b>'
+                if (true) {
+                    var cell = hour * 6 + parseInt(minu / 10);
+                    var cell1 = hour1 * 6 + parseInt(minu1 / 10);
+                    var cnt = cell1 - cell +1;
+                    var sum = 0
+                    for (var i = cell; i <=cell1; i++){
+                        sum+= highvalues[cell];
+                    }
+                    sum = sum*100/cnt
+                    content = ('' + sum).substr(0, 5) + '%'
+                }
+            }
+            content = content +"</b> <br>Parking Suggestion: <b><font color='#3f51b5'>" + suggestRD+"</font></b>";
+            document.getElementById("p1").innerHTML = '<b>Selected Streets</b>' +  timecontent + content;
+
+        };
+
+
+        info.updateT = function (props) {
+            var content = '< 10%'
+            if (props) {
+                var cell = hour * 6 + parseInt(minu / 10);
+                if (cell > 48 && cell < 108) {
+                    content = ('' + Math.min(props.occupancy[cell] * 150, 100)).substr(0, 5) + '%'
+                }
+            }
+            var hourr = (hour < 10 ? "0" : "") + hour;
+            var min = (minu < 10 ? "0" : "") + minu;
+            var hourr1 = (hour1 < 10 ? "0" : "") + hour1;
+            var min1 = (minu1 < 10 ? "0" : "") + minu1;
+
+            var timecontent = "";
+            if (inquirytype == 0){
+                timecontent = " <br>Time of inquiry:<b> " + hourr + ":" + min+ ' </b><br>Estimated Occupancy: <b>'
+            }
+
+            else if (inquirytype == 2){
+                timecontent = " <br>Date range of inquiry:<b><br> " + yy+'/'+mm+'/'+dd + " to "  + + yy1+'/'+mm1+'/'+dd1+ " <br></b>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated Occupancy: <b>'
+            }
+
+            else {
+                timecontent = " <br>Time range of inquiry:<b> " + hourr + ":" + min + " to " + hourr1 + ":"+min1 + '</b><br>Estimated average Occupancy: <b>'
+                if (props) {
+                    var cell = hour * 6 + parseInt(minu / 10);
+                    var cell1 = hour1 * 6 + parseInt(minu1 / 10);
+                    var cnt = cell1 - cell +1;
+                    var sum = 0
+                    for (var i = cell; i <=cell1; i++){
+                        sum+= props.occupancy[cell];
+                    }
+                    sum = Math.min(sum * 150/cnt, 100)
+                    content = ('' + sum).substr(0, 5) + '%'
+                }
+            }
+            //////////////
+            var element = document.getElementById('map');
+            if (element.style.zIndex != "1") {//deprecated if
+                document.getElementById("p1").innerHTML = (props ?
+                '<b>' + props.street + '</b>' +  timecontent + content +'</b>'
+                        : '<h5>Hover over a street to check occupancy</h5><br><br>');
+            }
+        };
+
+        info.updateLot = function (props) {
+            document.getElementById("p1").innerHTML = (props ?
+            props.long_name + '<br>' + props.address1 + ' ' + props.address2 + '<br>Availiable Spots: ' + props.available_spots + '<br>Hours: ' + props.hours
+                    : '<h5>Hover over a street to check occupancy</h5><br><br>');
+        };
+
+//////////////////////////////////
+        function highlightFeature(e) {
+            var layer = e.target;
+
+            if (layer.feature.geometry.type != "Point"){
+                    layer.setStyle({
+                    weight: 10
+                    });
+            } else{
+                layer.setStyle({
+                    radius: 10
+                });
+            }
+
+            if (!L.Browser.ie && !L.Browser.opera) {
+                layer.bringToFront();
+            }
+            info.update(layer.feature.properties);
+        }
+
+        function highlightFeatureT(e) {
+            var layer = e.target;
+
+            if (layer.feature.geometry.type != "Point"){
+                    layer.setStyle({
+                    weight: 10
+                    });
+            } else{
+                layer.setStyle({
+                    radius: 10
+                });
+            }
+
+            if (!L.Browser.ie && !L.Browser.opera) {
+                layer.bringToFront();
+            }
+
+            info.updateT(layer.feature.properties);
+        }
+
+        function highlightFeatureLot(e) {
+            var layer = e.target;
+            if (!L.Browser.ie && !L.Browser.opera) {
+                layer.bringToFront();
+            }
+            info.updateLot(layer.feature.properties);
+        }
+
+
+        function resetHighlight(e) {
+            var id =  e.target.feature.properties.streetID;
+            if (highlight.indexOf(id) == -1){
+                streetLayer.resetStyle(e.target);
+            }
+            info.update();
+            //$('#chart1').empty();
+        }
+
+        function resetHighlightT(e) {
+            var id =  e.target.feature.properties.streetID;
+            if (highlight.indexOf(id) == -1){
+                truckLayer.resetStyle(e.target);
+            }
+            info.updateT();
+            //$('#chart1').empty();
+        }
+
+        function resetHighlightLot(e) {
+            lotLayer.resetStyle(e.target);
+            info.updateLot();
+            //$('#chart1').empty();
+        }
+//////////////////////////////////////
+        function onEachFeature(feature, layer) {
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight
+            });
+
+            if (feature.properties && feature.properties.street && feature.properties.occupancy) {
+                layer.on('click', function (e) {
+                    var element = document.getElementById('map');
+                    element.style.zIndex = "100";
+                    info.update(layer.feature.properties);
+                    $("#chart1").empty();
+                    $("#chart2").empty();
+
+                    if(shifted){
+                        var id = feature.properties.streetID;
+                        if (highlight.indexOf(id) == -1 && shifted){
+                            combinemod = true;
+                            highlight.push(id);
+                            layer.closePopup();
+                            for (i = 0; i<144; i++){
+                                highvalues[i] = (highvalues[i]*highcount + parseFloat(feature.properties.occupancy[i]))/(highcount+1);
+                            }
+                            highcount = highcount +1;
+                        }
+                        /////////////////
+                        if (inquirytype == 0){
+                            var d = datime;
+                            var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            var current = feature.properties.occupancy[index];
+                            if (current <= suggRDcnt){
+                                suggRDcnt = current;
+                                suggestRDfe = e;
+                                suggestRD = feature.properties.street;
+                            }
+                        }
+                        if (inquirytype > 0 ){
+                            var d = datime;
+                            var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            d = datime1;
+                            var index1 = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            var current = 0;
+                            for (var i = index; i<= index1; i++){
+                                current = current + feature.properties.occupancy[i];
+                            }
+                            if (current <= suggRDcnt){
+                                suggRDcnt = current;
+                                suggestRDfe = e;
+                                suggestRD = feature.properties.street;
+                            }
+                        }
+                    }
+
+                    ////////////////////////
+                    else {
+                        element.style.zIndex = "1";
+                        var element = document.getElementById('map');
+                        element.style.zIndex = "1";
+                        n = feature.properties.occupancy.length;
+                        var line = [];
+                        var Xmax = 109;
+                        if (feature.properties.occupancy[112]>0.20){
+                            Xmax = 144;
+                        }
+                        var Xlen = Xmax-48-1;
+                        for (var i = 48; i < Xmax; i++) {
+                            var hour = Math.floor(i / 6);
+                            var minute = (i % 6) * 10;
+                            if (minute == 0) {
+                                minute = "00";
+                            }
+                            var point = ["" + hour + ":" + minute, feature.properties.occupancy[i]];
+                            line.push(point);
+                        }
+                        //check if the time period is in one day
+                        var d = datime;
+                        var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        d = datime1;
+                        var index1 = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        var plotcontent = [line.slice(0, index), line.slice(index - 1)];
+                        index = Math.max(0, Math.min(Xlen, index));
+                        index1 = Math.max(0, Math.min(Xlen, index1));
+
+                        if (inquirytype > 0) {
+                            plotcontent = [line.slice(0, index+1), line.slice(index1), line.slice(index, index1+1)];
+                        }
+                        if ((index == 0 || index == Xlen)&&(index1 == 0 || index1 == Xlen)&&(index == index1) ) {
+                            console.log("case1");
+                            index = 1;
+                            plotcontent = [line.slice(0, index), line.slice(index-1)];
+                        }
+                        $.jqplot('chart1', plotcontent, {
+                            series: [{lineWidth: 3, markerOptions: {show: false}},{lineWidth: 5, markerOptions: {show: false}},{lineWidth: 6, markerOptions: {show: false}}],
+                            title: 'Occupancy Distribution of ' + feature.properties.street + ' : Car',
+                            axes: {
+                                xaxis: {renderer: $.jqplot.DateAxisRenderer, tickOptions: {formatString: '%H:%M'}},
+                                yaxis: {min: 0, max: 1}
+                            },
+
+                            grid: {
+                                drawGridLines: true,        // wether to draw lines across the grid or not.
+                                gridLineColor: '#cccccc',    // *Color of the grid lines.
+                                background: '#FFFFFF'
+                            },
+                            seriesColors: ["#999598", "#3f51b5", "#FF0066"]
+                        });
+
+                        var linerate = [];
+                        for (var i = 0; i < 48; i++) {
+                            var hour = Math.floor(i / 2);
+                            var minute = (i % 2) * 30;
+                            if (minute == 0) {
+                                minute = "00";
+                            }
+                            var point = ["" + hour + ":" + minute, feature.properties.rate[i]];
+                            linerate.push(point);
+                        }
+
+                        $.jqplot('chart2', [linerate], {
+                            series: [{lineWidth: 2, markerOptions: {show: true}}],
+                            title: 'Parking rate ($/hour)',
+                            axes: {
+                                xaxis: {renderer: $.jqplot.DateAxisRenderer, tickOptions: {formatString: '%H:%M'}},
+                                yaxis: {min: 0, max:  Math.max(feature.properties.rate[20]*1.5, 2)}
+                            },
+
+                            grid: {
+                                drawGridLines: true,        // wether to draw lines across the grid or not.
+                                gridLineColor: '#cccccc',    // *Color of the grid lines.
+                                background: '#FFFFFF'
+                            },
+                            seriesColors: ["#3f51b5"]
+                        });
+                    }
+                });
+            }
+        }
+
+        function onEachFeatureT(feature, layer) {
+            layer.on({
+                mouseover: highlightFeatureT,
+                mouseout: resetHighlightT
+            });
+
+            if (feature.properties && feature.properties.street && feature.properties.occupancy) {
+                layer.on('click', function (e) {
+                    var element = document.getElementById('map');
+                    element.style.zIndex = "100";
+                    info.updateT(layer.feature.properties);
+                    $("#chart1").empty();
+
+                    if(shifted){
+                        var id = feature.properties.streetID;
+                        if (highlight.indexOf(id) == -1 && shifted){
+                            combinemod = true;
+                            highlight.push(id);
+                            layer.closePopup();
+                            for (i = 0; i<144; i++){
+                                highvalues[i] = Math.min(1, (highvalues[i]*highcount + parseFloat(feature.properties.occupancy[i])*1.5)/(highcount+1));
+                            }
+                            highcount = highcount +1;
+                        }
+                        if (inquirytype == 0){
+                            var d = datime;
+                            var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            var current = feature.properties.occupancy[index];
+                            if (current <= suggRDcnt){
+                                suggRDcnt = current;
+                                suggestRDfe = e;
+                                suggestRD = feature.properties.street;
+                            }
+                        }
+                        if (inquirytype > 0 ){
+                            var d = datime;
+                            var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            d = datime1;
+                            var index1 = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10);
+                            var current = 0;
+                            for (var i = index; i<= index1; i++){
+                                current = current + feature.properties.occupancy[i];
+                            }
+                            if (current <= suggRDcnt){
+                                suggRDcnt = current;
+                                suggestRDfe = e;
+                                suggestRD = feature.properties.street;
+                            }
+                        }
+
+                    }
+
+                    else {
+                        element.style.zIndex = "1";
+                        info.updateT(layer.feature.properties);
+                        var element = document.getElementById('map');
+                        element.style.zIndex = "1";
+                        n = feature.properties.occupancy.length;
+                        var line = [];
+                        var Xmax = 109;
+                        if (feature.properties.occupancy[112]>0.20){
+                            Xmax = 144
+                        }
+                        var Xlen = Xmax-48-1;
+                        for (var i = 0; i < Xmax; i++) {
+                            var hour = Math.floor(i / 6);
+                            var minute = (i % 6) * 10;
+                            if (minute == 0) {
+                                minute = "00";
+                            }
+                            var point = ["" + hour + ":" + minute, Math.min(feature.properties.occupancy[i] * 1.5, 1)];
+                            line.push(point);
+                        }
+                        //check if the time period is in one day
+                        var d = datime;
+                        var index = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        d = datime1;
+                        var index1 = parseInt(d.getHours() * 6) + parseInt(d.getMinutes() / 10) - 48;
+                        var plotcontent = [line.slice(0, index), line.slice(index - 1)];
+
+                        index = Math.max(0, Math.min(Xlen, index));
+                        index1 = Math.max(0, Math.min(Xlen, index1));
+
+                        if (inquirytype > 0) {
+                            plotcontent = [line.slice(0, index+1), line.slice(index1), line.slice(index, index1+1)];
+                        }
+                        if ((index == 0 || index == Xlen)&&(index1 == 0 || index1 == Xlen)&&(index == index1) ) {
+                            console.log("case1");
+                            index = 1;
+                            plotcontent = [line.slice(0, index), line.slice(index-1)];
+                        }
+                        var plot1 = $.jqplot('chart1', plotcontent, {
+                            series: [{lineWidth: 3, markerOptions: {show: false}},{lineWidth: 5, markerOptions: {show: false}},{lineWidth: 6, markerOptions: {show: false}}],
+                            title: 'Occupancy Distribution of ' + feature.properties.street + ' : Truck',
+                            axes: {
+                                xaxis: {renderer: $.jqplot.DateAxisRenderer, tickOptions: {formatString: '%H:%M'}},
+                                yaxis: {min: 0, max: 1}
+                            },
+
+                            grid: {
+                                drawGridLines: true,        // wether to draw lines across the grid or not.
+                                gridLineColor: '#cccccc',    // *Color of the grid lines.
+                                background: '#FFFFFF'
+                            },
+                            seriesColors: ["#999598", "#3f51b5", "#FF0066"]
+                        });
+
+                        var linerate = [];
+                        for (var i = 0; i < 48; i++) {
+                            var hour = Math.floor(i / 2);
+                            var minute = (i % 2) * 30;
+                            if (minute == 0) {
+                                minute = "00";
+                            }
+                            var point = ["" + hour + ":" + minute, feature.properties.rate[i]];
+                            linerate.push(point);
+                        }
+
+                        $.jqplot('chart2', [linerate], {
+                            series: [{lineWidth: 3, markerOptions: {show: false}}],
+                            title: 'Parking rate ($/hour)',
+                            axes: {
+                                xaxis: {renderer: $.jqplot.DateAxisRenderer, tickOptions: {formatString: '%H:%M'}},
+                                yaxis: {min: 0, max: Math.max(feature.properties.rate[20]*1.5, 3)}
+                            },
+
+                            grid: {
+                                drawGridLines: true,        // wether to draw lines across the grid or not.
+                                gridLineColor: '#cccccc',    // *Color of the grid lines.
+                                background: '#FFFFFF'
+                            },
+                            seriesColors: ["#3f51b5"]
+                        });
+                    }
+                });
+            }
+        }
+
+
+        function showOcp() {
+            var cell = hour * 6 + parseInt(minu / 10);
+            var st_in_map = true;
+            var tr_in_map = false;
+            if(underlayer){
+                map.removeLayer(underlayer);
+            }
+            if (streetLayer) {
+                control.removeLayer(streetLayer);
+                if (map.hasLayer(streetLayer)) {
+                    map.removeLayer(streetLayer);
+                }
+                else {
+                    st_in_map = false;
+                }
+            }
+
+            if (truckLayer) {
+                control.removeLayer(truckLayer);
+                if (map.hasLayer(truckLayer)) {
+                    map.removeLayer(truckLayer);
+                    tr_in_map = true;
+                }
+            }
+            streetLayer = L.geoJson(streets, {
+                style: function (feature) {
+                    if (feature.geometry.type != "Point") {
+                        if (feature.properties.occupancy[cell] < 0.6) {
+                            return {weight: 7, color: 'green', opacity: 0.9};
+                        } else if (feature.properties.occupancy[cell] < 0.85) {
+                            return {weight: 7, color: 'yellow', opacity: 0.9};
+                        } else {
+                            return {weight: 7, color: 'red', opacity: 0.9};
+                        }
+                    }
+                    else {
+                        return {radius: 7};
+                    }
+                },
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, lotsMarkerStyle(feature.properties.occupancy[cell]));
+                },
+                onEachFeature: onEachFeature
+            });
+
+            if (st_in_map) {
+                streetLayer.addTo(map);
+            }
+            control.addOverlay(streetLayer, 'Street Parking');
+
+            truckLayer = L.geoJson(streets, {
+                style: function (feature) {
+                    if (feature.geometry.type != "Point") {
+                        if (feature.properties.occupancy[cell]*1.5 < 0.6) {
+                            return {weight: 7, color: 'green', opacity: 0.9};
+                        } else if (feature.properties.occupancy[cell]*1.5 < 0.85) {
+                            return {weight: 7, color: 'yellow', opacity: 0.9};
+                        } else {
+                            return {weight: 7, color: 'red', opacity: 0.9};
+                        }
+                    }
+                    else {
+                        return {radius: 7};
+                    }
+                },
+                pointToLayer: function (feature, latlng) {
+                    return L.circleMarker(latlng, lotsMarkerStyle(feature.properties.occupancy[cell]*1.5));
+                },
+                onEachFeature: onEachFeatureT
+            });
+            if (tr_in_map) {
+                truckLayer.addTo(map);
+            }
+            control.addOverlay(truckLayer, 'Truck Parking');
+            var element = document.getElementById('chart2');
+            element.style.display = '';
+        }
+
+
+{#        terminalLayer = L.geoJson(terminals, {#}
+{#            pointToLayer: function (feature, latlng) {#}
+{#                return L.circleMarker(latlng, parkingMarkerStyle());#}
+{#            },#}
+{#            onEachFeature: function (feature, layer) {#}
+{#                if (feature.properties && feature.properties.street) {#}
+{#                    layer.bindPopup("Street : " + feature.properties.street + '<br>'+"Meter ID : " + feature.properties.terminalID);#}
+{#                }#}
+{#            }#}
+{#        }).addTo(map);#}
+{#        control.addOverlay(terminalLayer, 'Terminals');#}
+
+        function getColorLots(d) {
+            return d <= 0.6 ? '#008000' :
+                    d <= 0.85 ? '#FFFF66' :
+                                '#FF0000';
+        }
+
+        function lotsMarkerStyle(d) {
+            return {
+                radius: 7,
+                fillColor: getColorLots(d),
+                color: 'white',
+                weight: 1,
+                opacity: 1,
+                fillOpacity: 0.9
+            };
+        }
+
+        function onEachFeatureLot(feature, layer) {
+            layer.on({
+                mouseover: highlightFeatureLot,
+                mouseout: resetHighlightLot
+            });
+            if (feature.properties) {
+                layer.bindPopup(feature.properties.long_name + '<br>' + feature.properties.address1 + ' ' + feature.properties.address2 +
+                '<br>Availiable Spots: ' + feature.properties.available_spots + '<br>Maximum Spots: ' +feature.properties.max_spots +'<br>Hours: ' + feature.properties.hours);
+            }
+        }
+
+        function updatelot() {
+
+            $.get("../parking_lots/", function (data, textStatus) {
+                //$('#txtH int').text(data);
+
+                if (lotLayer) {
+                    control.removeLayer(lotLayer);
+                if (map.hasLayer(lotLayer)) {
+                    map.removeLayer(lotLayer);
+                }
+                }
+                lotLayer = L.geoJson(data, {
+                            pointToLayer: function (feature, latlng) {
+                                var d = feature.properties.available_spots/feature.properties.max_spots;
+                                return L.circleMarker(latlng, lotsMarkerStyle(d));
+                            },
+                            onEachFeature: onEachFeatureLot
+                        }
+                ).addTo(map);
+                control.addOverlay(lotLayer, 'Parking Lots');
+
+            }, "json");
+        };
+    </script>
+
+{% endblock %}

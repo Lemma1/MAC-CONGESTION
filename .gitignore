@@ -1,0 +1,11 @@
+#ignore all files in .idea directory
+.idea/
+
+#ignore all .pyc files
+*.pyc
+celerybeat.pid
+celerybeat-schedule
+gis_to_geoJSON.js
+real_time_tt.html
+settings.py
+path_table

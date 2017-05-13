@@ -1,0 +1,57 @@
+{% extends "traffic/base.html" %}
+
+{% load staticfiles %}
+
+{% block title %}
+MDAP - Camera
+{% endblock %}
+
+{% block style %}
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+    <link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+    <style>
+    #lw,#rw{
+    width:0px;
+    }
+    </style>
+{% endblock %}
+
+
+{% block map %}
+<div id="map"></div>
+{% endblock %}
+	
+
+{% block script %}
+<script type="text/javascript" src="{% static 'traffic/modernizr-1.5.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/CCTV_geoJSON.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
+<script>
+	$(function(){var map = L.map('map').setView([40.9188752,-77.0464159], 7);
+
+	// add an OpenStreetMap tile layer
+	L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+		attribution: '&copy; <a href="http://osm.ggorg/copyright">OpenStreetMap</a> contributors'
+	}).addTo(map);
+	
+	map.addControl( new L.Control.Search({
+			url: 'http://nominatim.openstreetmap.org/search?format=json&q={s}',
+			jsonpParam: 'json_callback',
+			propertyName: 'display_name',
+			propertyLoc: ['lat','lon'],
+			markerLocation: true,
+			autoType: false,
+			autoCollapse: true,
+			minLength: 2,
+			zoom:10
+		}) );
+	
+	for(x in CCTVList){
+		L.marker(CCTVList[x].geometry.coordinates).addTo(map)
+		.bindPopup('<img src = ' + CCTVList[x].properties.URL+' width="300"/>');
+		}
+	});
+  </script>
+{% endblock %}
+
+
