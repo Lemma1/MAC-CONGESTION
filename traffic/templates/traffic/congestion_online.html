@@ -180,16 +180,18 @@
         var zoomLevel = getZoomLevel(zoom)
         // let xzoom = .005 * Math.pow(2, 17-zoom);
         // let yzoom = .003 * Math.pow(2, 17-zoom);
-        // return [xzoom, yzoom];
-        if (zoomLevel == stagingZoomLevels[0]) return [0.017, 0.011]
-        if (zoomLevel == stagingZoomLevels[1]) return [0.017, 0.011]
-        if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
+        let xzoom = .005 * Math.pow(2, 19-zoom);
+        let yzoom = .003 * Math.pow(2, 19-zoom);
+        return [xzoom, yzoom];
+        // if (zoomLevel == stagingZoomLevels[0]) return [0.017, 0.011]
+        // if (zoomLevel == stagingZoomLevels[1]) return [0.017, 0.011]
+        // if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
     }
 
     // This helper function gets the "hash value" which is used as the key of a dictionary,
     // where cached link values are stored
     function hashLatLng(a, b, zoom) {
-        str = "" + Math.round(a * 1e6) / 1e6 + "|" + Math.round(b * 1e6) / 1e6 + "|" + getZoomLevel(zoom)
+        str = "" + Math.round(a * 1e3) / 1e3 + "|" + Math.round(b * 1e3) / 1e3 + "|" + getZoomLevel(zoom)
         return str
     }
 
@@ -561,12 +563,12 @@
 
     var bounds = getBounds();
 
-    for (var i = 0; i < stagingZoomLevels.length; i++) {
-        if (map.getZoom() >= stagingZoomLevels[i]) {
-            numlanes = numlanesWithZoomPhilly[i];
-            break;
-        }
-    }
+    // for (var i = 0; i < stagingZoomLevels.length; i++) {
+    //     if (map.getZoom() >= stagingZoomLevels[i]) {
+    //         numlanes = numlanesWithZoomPhilly[i];
+    //         break;
+    //     }
+    // }
     // var blockWidth = getBlockSize(map.getZoom())[0]
     // var blockHeight = getBlockSize(map.getZoom())[1]
 
@@ -796,17 +798,18 @@
         }
         linksRequests = [];
 
-        for (var i = 0; i < stagingZoomLevels.length; i++) {
-            if (map.getZoom() >= stagingZoomLevels[i]) {
-                var numlanes = numlanesWithZoomPhilly[i];
-                break;
-            }
-        }
+        // for (let i = 0; i < stagingZoomLevels.length; i++) {
+        //     if (map.getZoom() >= stagingZoomLevels[i]) {
+        //         var numlanes = numlanesWithZoomPhilly[i];
+        //         break;
+        //     }
+        // }
 
         var zoom = map.getZoom()
         var blockWidth = getBlockSize(map.getZoom())[0]
         var blockHeight = getBlockSize(map.getZoom())[1]
         for (var key in linksLayersCache) {
+            // console.log('Current key is:', key);
             lag = key.split("|")[0]
             lng = key.split("|")[1]
             zoomLevel = key.split("|")[2]
@@ -814,20 +817,30 @@
                     lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
                     || zoomLevel > zoom) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
                     // ) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
-                console.log('removing link layer: ', hashLatLng(lat, lng, zoom));
+                console.log('removing link layer: ', key);
                 linksLayerGroup.removeLayer(linksLayersCache[key])
             }
         }
-        for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
-            for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
+
+
+        for (let i = 0; i < stagingZoomLevels.length; i++){
+          if (zoom >= stagingZoomLevels[i]){
+            var c_zoom = stagingZoomLevels[i]
+            console.log('processing zoom level: ', c_zoom);
+            blockWidth = getBlockSize(c_zoom)[0]
+            blockHeight = getBlockSize(c_zoom)[1]
+            // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
+            for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+              for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {       
+                // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
                 var NE_lat = lat + blockHeight / 2
                 var NE_lng = lng + blockWidth / 2
                 var SW_lat = lat - blockHeight / 2
                 var SW_lng = lng - blockWidth / 2
-                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) {
+                if (linksLayersCache[hashLatLng(lat, lng, c_zoom)]) {
                     // Layer is in cache
-                    console.log('Layer is in cache: ', hashLatLng(lat, lng, zoom));
-                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, zoom)]
+                    console.log('Layer is in cache: ', hashLatLng(lat, lng, c_zoom));
+                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, c_zoom)]
                     if (!linksLayerGroup.hasLayer(cachedLayer)) {
                         //This is to prevent loading layers with previous color
                         if (playStatus) {
@@ -846,32 +859,36 @@
                         }
                         linksLayerGroup.addLayer(cachedLayer)
                     }
-                } else {
-                    console.log('adding link layer: ', hashLatLng(lat, lng, zoom));
-                    // Layer is not in cache
-                    (function(lat, lng, zoom) {
-
-                        // Save the link request so we can cancel later
-                        let req = $.get("../get_links/", {
-                                numlanes: numlanes,
-                                NE_lat: NE_lat,
-                                NE_lng: NE_lng,
-                                SW_lat: SW_lat,
-                                SW_lng: SW_lng
-                            },
-                            function(data, textStatus) {
-                                data = massageLinkLayer(data);
-
-                                let displayData = shift_features_for_two_ways(data, map.getZoom())
-                                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) return
-                                link_layers_to_load.push([displayData, hashLatLng(lat, lng, zoom)])
-                                console.log("links loaded", displayData.features.length);
-                            }, 'json');
-                        linksRequests.push(req);
-                    })(lat, lng, zoom)
+                } 
+                else {
+                  console.log('adding link layer: ', hashLatLng(lat, lng, c_zoom));
+                  // Layer is not in cache
+                  (function(lat, lng, zoom) {
+                    // Save the link request so we can cancel later
+                    let req = $.get("../get_links/", {
+                            numlanes: numlanesWithZoomPhilly[i],
+                            NE_lat: NE_lat,
+                            NE_lng: NE_lng,
+                            SW_lat: SW_lat,
+                            SW_lng: SW_lng
+                        },
+                        function(data, textStatus) {
+                            c_zoom = stagingZoomLevels[i]
+                            data = massageLinkLayer(data);
+                            let displayData = shift_features_for_two_ways(data, map.getZoom())
+                            // if (linksLayersCache[hashLatLng(lat, lng, zoom)]) continue
+                            
+                            link_layers_to_load.push([displayData, hashLatLng(lat, lng, c_zoom)])
+                            console.log("links loaded", displayData.features.length);
+                        }, 'json');
+                    linksRequests.push(req);
+                  })(lat, lng, zoom)
                 }
+              }
             }
+          }
         }
+
         console.log("Length of the buffer: ", Object.keys(linksLayersCache).length)
         $.when.apply(null, linksRequests).done(reloadLinkLayer);
     };
