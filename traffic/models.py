@@ -665,6 +665,7 @@ class Link(models.Model):
 #    length = models.IntegerField()
 #    direction = models.IntegerField()
 #    geom = models.LineStringField(srid=4326)
+
 class Philly_link(models.Model):
     _DATABASE = "psql"
     no = models.IntegerField()
@@ -678,6 +679,7 @@ class Philly_link(models.Model):
     direction = models.IntegerField()
     geom = models.LineStringField(srid=4326)
     geom_str = models.TextField()
+    zoom_level = models.IntegerField(default = 0)
 
 
 

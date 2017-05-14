@@ -180,8 +180,8 @@
         var zoomLevel = getZoomLevel(zoom)
         // let xzoom = .005 * Math.pow(2, 17-zoom);
         // let yzoom = .003 * Math.pow(2, 17-zoom);
-        let xzoom = .005 * Math.pow(2, 19-zoom);
-        let yzoom = .003 * Math.pow(2, 19-zoom);
+        let xzoom = .005 * Math.pow(2, 18-zoom);
+        let yzoom = .003 * Math.pow(2, 18-zoom);
         return [xzoom, yzoom];
         // if (zoomLevel == stagingZoomLevels[0]) return [0.017, 0.011]
         // if (zoomLevel == stagingZoomLevels[1]) return [0.017, 0.011]
@@ -743,8 +743,8 @@
                                     getFeatureId (f) { return f.properties.no; }
                                 });
 
-            linksLayer.on("click", () => console.log("link clicked"));
-            // linksLayer.on("click", onClickLink);
+            // linksLayer.on("click", () => console.log("link clicked"));
+            linksLayer.on("click", onClickLink);
             console.log("finish loading link layer", hash);
 
             let link_ids = [];

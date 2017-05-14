@@ -2261,7 +2261,7 @@ from django.db.models import Q
 def get_links(request):
     import time
 
-    numlanes = request.GET['numlanes']
+    numlanes = int(request.GET['numlanes'])
     NE_lat = float(request.GET['NE_lat'])
     NE_lng = float(request.GET['NE_lng'])
     SW_lat = float(request.GET['SW_lat'])
@@ -2269,7 +2269,7 @@ def get_links(request):
 
     boxDiagnol = Polygon.from_bbox((SW_lng, SW_lat, NE_lng, NE_lat))
 
-    links = Philly_link.objects.filter(geom__bboverlaps = boxDiagnol).filter(numlanes__exact = numlanes)
+    links = Philly_link.objects.filter(geom__bboverlaps = boxDiagnol).filter(zoom_level__exact = numlanes)
     # links = links.prefetch_related('geom')
 
     current_milli_time = lambda: int(round(time.time() * 1000))
