@@ -180,12 +180,12 @@
         var zoomLevel = getZoomLevel(zoom)
         // let xzoom = .005 * Math.pow(2, 17-zoom);
         // let yzoom = .003 * Math.pow(2, 17-zoom);
-        let xzoom = .005 * Math.pow(2, 18-zoom);
-        let yzoom = .003 * Math.pow(2, 18-zoom);
-        return [xzoom, yzoom];
-        // if (zoomLevel == stagingZoomLevels[0]) return [0.017, 0.011]
-        // if (zoomLevel == stagingZoomLevels[1]) return [0.017, 0.011]
-        // if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
+        // let xzoom = .005 * Math.pow(2, 19-zoom);
+        // let yzoom = .003 * Math.pow(2, 19-zoom);
+        // return [xzoom, yzoom];
+        if (zoomLevel == stagingZoomLevels[0]) return [0.017 * 2, 0.011 * 2]
+        if (zoomLevel == stagingZoomLevels[1]) return [0.017 * 4, 0.011 * 4]
+        if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
     }
 
     // This helper function gets the "hash value" which is used as the key of a dictionary,
@@ -549,14 +549,10 @@
 
     function getBounds() {
         let bounds = map.getBounds();
-        // let south = Math.max(bounds.getSouth(), 39.914241);
-        // let north = Math.min(bounds.getNorth(), 40.203163);
-        // let west = Math.max(bounds.getWest(), -75.521439);
-        // let east = Math.min(bounds.getEast(), -74.803599);
-        let south = bounds.getSouth();
-        let north = bounds.getNorth();
-        let west = bounds.getWest();
-        let east = bounds.getEast();
+        let south = Math.max(bounds.getSouth(), 39.914241);
+        let north = Math.min(bounds.getNorth(), 40.203163);
+        let west = Math.max(bounds.getWest(), -75.521439);
+        let east = Math.min(bounds.getEast(), -74.803599);
         return L.latLngBounds(L.latLng(south, west), L.latLng(north, east));
 
     }
@@ -694,7 +690,7 @@
 
     displayLinkInfoUpdates = function() {
         var container = $('<ul class = "list-group"></ul>');
-        for (var i = 0; i < linkInfoUpdates.length; i++) {
+        for (let i = 0; i < linkInfoUpdates.length; i++) {
             var update = linkInfoUpdates[i];
             li = $("<li/>", {
                 class: "list-group-item"
@@ -810,13 +806,12 @@
         var blockHeight = getBlockSize(map.getZoom())[1]
         for (var key in linksLayersCache) {
             // console.log('Current key is:', key);
-            lag = key.split("|")[0]
-            lng = key.split("|")[1]
+            var lat = key.split("|")[0]
+            var lng = key.split("|")[1]
             zoomLevel = key.split("|")[2]
             if ((lat < bounds._southWest.lat - blockHeight || lat > bounds._northEast.lat + blockHeight ||
                     lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
                     || zoomLevel > zoom) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
-                    // ) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
                 console.log('removing link layer: ', key);
                 linksLayerGroup.removeLayer(linksLayersCache[key])
             }

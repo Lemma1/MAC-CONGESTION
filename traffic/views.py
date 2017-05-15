@@ -2269,7 +2269,10 @@ def get_links(request):
 
     boxDiagnol = Polygon.from_bbox((SW_lng, SW_lat, NE_lng, NE_lat))
 
-    links = Philly_link.objects.filter(geom__bboverlaps = boxDiagnol).filter(zoom_level__exact = numlanes)
+    if numlanes != 0:
+        links = Philly_link.objects.filter(geom__bboverlaps = boxDiagnol).filter(zoom_level__exact = numlanes)
+    else:
+        links = Philly_link.objects.filter(geom__bboverlaps = boxDiagnol).filter(zoom_level__gte = numlanes)
     # links = links.prefetch_related('geom')
 
     current_milli_time = lambda: int(round(time.time() * 1000))

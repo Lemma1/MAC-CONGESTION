@@ -7,7 +7,9 @@ import pickle
 
 # new_fields = 'zoom_level'
 
-cut_offs = [30, 50, 100]
+cut_offs = [40, 50, 100]
+
+cut_dict = {1: [41, 42, 43, 51, 52, 61, 62, 72, 81, 82, 83, 85, 86, 92], 2: [31, 32, 33], 3:[5, 11, 12, 13, 21, 22, 23]}
 
 # Load data (deserialize)
 with open('Philly/match_dict.pkl', 'rb') as handle:
@@ -16,11 +18,10 @@ with open('Philly/match_dict.pkl', 'rb') as handle:
 
 def get_zoom_level(no):
     type_no = match_dict[int(no)]
-    zoom_level = None
-    for idx, cut in enumerate(cut_offs):
-        if type_no <= cut:
-            zoom_level = idx + 1
-            return zoom_level
+    for key, cut in cut_dict.iteritems():
+        if type_no in cut:
+            return key
+    print "ERROR!!!!"
 
 links = Philly_link.objects.all()
 
