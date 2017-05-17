@@ -34,20 +34,10 @@ class Link:
 	def isConnector(self):
 		return int(self.RHOJ > 9999)
 
-def r2(predictions, targets):
-	y_bar = np.mean(targets)
-	diff = np.minimum(np.abs(predictions - targets),  3 * targets)
-	# diff = predictions - targets
-	ss_e = np.sum(diff ** 2)
-	ss_t = np.sum((targets) ** 2)
-	# ss_r = np.sum((predictions) ** 2)
-	# return ss_r/ss_t
-	return 1 - ss_e / ss_t
-
-def read_volume_output(total_inverval, path):
+def read_output(total_inverval, path):
 	output = dict()
 	link_id_list = list()
-	f = file(path + "/record/MNM_output_record_interval_volume", 'r')
+	f = file(os.path.join(path, "record/MNM_output_record_interval_volume"), 'r')
 	line = f.readline()
 	words = line.split()
 	num_link = len(words)
@@ -67,86 +57,29 @@ def read_volume_output(total_inverval, path):
 		print "Potential error"
 	f.close()
 	return output
-
-def read_tt_output(total_inverval, path):
-	output = dict()
-	link_id_list = list()
-	f = file(path + "/record/MNM_output_record_interval_tt", 'r')
-	line = f.readline()
-	words = line.split()
-	num_link = len(words)
-	for str_link_id in words:
-		link_id = int(str_link_id)
-		output[link_id] = np.zeros(total_inverval)
-		link_id_list.append(link_id)
-	line = f.readline()
-	counter = 0
-	while line:
-		words = line.split()
-		for idx, str_link_volume in enumerate(words):
-			output[link_id_list[idx]][counter] = np.float(str_link_volume)
-		counter = counter + 1
-		line = f.readline()
-	if (counter != total_inverval):
-		print "Potential error"
-	f.close()
-	return output
-
 
 def get_link_dic(path):
 	linkDic = dict()
-	link_log = file(path + "/Philly.lin", "r").readlines()[1:]
+	link_log = file(os.path.join(path, "Philly.lin"), "r").readlines()[1:]
 	for line in link_log:
 		e = Link(line)
 		if e.linkType == "LWRLK":
 			linkDic[e.ID] = e
 	return linkDic
 
-def get_density_matrix(link_dict, output_dict, total_inverval):
+def get_matrix(link_dict, output_dict, total_inverval):
 	output_matrix = np.zeros((len(link_dict), total_inverval + 1))
 	for idx, link_id in enumerate(link_dict.keys()):
 		output_matrix[idx][0] = link_id
 		output_matrix[idx, 1:total_inverval+1] = output_dict[link_id] / (link_dict[link_id].RHOJ * np.float(link_dict[link_id].lane) * link_dict[link_id].length)
 	return output_matrix
 
-def get_speed_matrix(link_dict, output_dict, total_inverval):
-	output_matrix = np.zeros((len(link_dict), total_inverval + 1))
-	for idx, link_id in enumerate(link_dict.keys()):
-		output_matrix[idx][0] = link_id
-		output_matrix[idx, 1:total_inverval+1] = link_dict[link_id].length / output_dict[link_id] * 60 * 60
-	return output_matrix
-
-
-
-
-
-def get_error(path, tt_output_dict, link_dict):
-	spd_log= file(path + "/MNM_input_spd", "r").readlines()[1:]
-	observed_spd = dict()
-	for line in spd_log:
-		words = line.split()
-		if len(words) == 2:
-			observed_spd[int(words[0])] = np.float(words[1])
-	simulated_list = list()
-	observed_list = list()
-	for linkID in link_dict.keys():
-		if linkID in observed_spd.keys():
-			simulated_list.append(link_dict[linkID].length / tt_output_dict[linkID][1]* 60 * 60)
-			observed_list.append(observed_spd[linkID])
-	# print simulated_list
-	# print observed_list
-	r = r2(np.array(simulated_list), np.array(observed_list))
-	return round(r, 2)
-
 
 def read_results(total_inverval, path):
 	link_dict = get_link_dic(path)
-	volume_output_dict = read_volume_output(total_inverval, path)
-	density = get_density_matrix(link_dict, volume_output_dict, total_inverval)
-	tt_output_dict = read_tt_output(total_inverval, path)
-	speed = get_speed_matrix(link_dict, tt_output_dict, total_inverval)
-	r2 = get_error(path, tt_output_dict, link_dict)
-	return (density, speed, r2)
+	output_dict = read_output(total_inverval, path)
+	results = get_matrix(link_dict, output_dict, total_inverval)
+	return results
 
 ##################################################
 #######				main    			##########
@@ -154,7 +87,7 @@ def read_results(total_inverval, path):
 
 def get_realtime_feed():
 	record_freq = 6
-	path = "/home/hzn/project/dataproject/traffic/backend/MINAMI_backend/online/"
+	path = os.path.join(os.getcwd(), "traffic/backend/MINAMI_backend/online")
 	total_inverval = 60 * 60 / 5 / record_freq
 	results = read_results(total_inverval, path)
 	return results

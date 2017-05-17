@@ -41,43 +41,43 @@ MDAP - Traffic Congestion Task Request
           <div class="form-group row">
             <label for="datetimepicker1" class="col-sm-3 form-control-label">Start Time</label>
             <div class="col-sm-9">
-              <input id="datetimepicker1" />
+              <input id="datetimepicker1" value="7:30 AM"/>
             </div>
           </div>
           <div class="form-group row">
             <label for="datetimepicker2" class="col-sm-3 form-control-label">End Time</label>
             <div class="col-sm-9">
-              <input id="datetimepicker2" />
+              <input id="datetimepicker2" value="9:00 AM"/>
             </div>
           </div>
           <div class="form-group row">
             <label for="taskName" class="col-sm-3 form-control-label">Task Name</label>
             <div class="col-sm-9">
-              <input class="form-control" id="taskName">
+              <input class="form-control" id="taskName" value="Test_Name">
             </div>
           </div>
           <div class="form-group row">
-            <label for="unitTime" class="col-sm-3 form-control-label">Animation Resolution</label>
+            <label for="resolution" class="col-sm-3 form-control-label">Animation Resolution</label>
             <div class="col-sm-9">
-              <input type="number" class="form-control" id="resolution" min="10" max="120">
+              <input type="number" class="form-control" id="resolution" min="1" max="60" value = "30">
             </div>
           </div>
           <div class="form-group row">
             <label for="vehicleScalar" class="col-sm-3 form-control-label">Vehicle Scalar</label>
             <div class="col-sm-9">
-              <input type="number" class="form-control" id="vehicleScalar" min="1">
+              <input type="number" class="form-control" id="vehicleScalar" min="1" value = "2">
             </div>
           </div>
           <div class="form-group row">
             <label for="kShortestPath" class="col-sm-3 form-control-label">Kshortest Path</label>
             <div class="col-sm-9">
-              <input type="number" class="form-control" id="kShortestPath" min="1">
+              <input type="number" class="form-control" id="kShortestPath" min="1" value = "3">
             </div>
           </div>
           <div class="form-group row">
             <label for="dispersionFactor" class="col-sm-3 form-control-label">Dispersion Factor</label>
             <div class="col-sm-9">
-              <input type="number" class="form-control" id="dispersionFactor" min="0" max="1">
+              <input type="number" class="form-control" id="dispersionFactor" min="0" max="1" value="0.5">
             </div>
           </div>
           <div class="form-group row">
@@ -99,6 +99,7 @@ MDAP - Traffic Congestion Task Request
 <script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
 <script type="text/javascript" src="{% static 'traffic/leaflet.timedimension.src.js' %}"></script>
 <script type="text/javascript" src="{% static 'traffic/iso8601.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/spin.min.js' %}"></script>
 <script src="{% static 'traffic/kendo.all.min.js' %}"></script>
 <script>
 
@@ -141,6 +142,39 @@ MDAP - Traffic Congestion Task Request
         layers: [grayscale],
     });
 
+
+    var spinner = null
+
+    start_spinner = function() {
+        var spinneropts = {
+            lines: 13, // The number of lines to draw
+            length: 20, // The length of each line
+            width: 10, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 60, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+        };
+        var target = document.getElementById('map')
+        shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
+        $('#map').prepend(shade)
+        if (spinner) {
+            spinner.spin(target)
+        } else {
+            spinner = new Spinner(spinneropts).spin(target);
+        }
+    }
+
+    stop_spinner = function() {
+        spinner.stop()
+        $("#shade").remove()
+    }
+
     var baseMaps = {
         "Grayscale": grayscale,
         "Streets": streetsL
@@ -160,7 +194,7 @@ MDAP - Traffic Congestion Task Request
     var speedWithZoom = [[0, 1, 5, 15, 20, 25, 35, 45, 55, 65],
                          [35, 45, 55, 65],
                          [45, 55, 65]];
-     var speedWithZoomPhilly = [-1,
+    var speedWithZoomPhilly = [-1,
                                 30,
                                 50]
     var numlanesWithZoomPhilly = [1, 2, 3]
@@ -168,16 +202,17 @@ MDAP - Traffic Congestion Task Request
                                [],
                                []];
 
+
+  $(function(){
     $("#datetimepicker1").kendoTimePicker({
         interval: 15
     });
-    var datetimepicker1 = $("#datetimepicker1").data("kendoTimePicker");
-
+    
     $("#datetimepicker2").kendoTimePicker({
         interval: 15
     });
-    var datetimepicker2 = $("#datetimepicker2").data("kendoTimePicker");
-
+    
+  });
 
     shift_features_for_two_ways = function(data, zoomLevel) {
       coordinate_shift = 1 / 5e4 * (19 - zoomLevel)
@@ -229,7 +264,7 @@ MDAP - Traffic Congestion Task Request
         for (key in feature.properties) {
             table.append($("<tr>").html("<th>"+substitute_word[key]+"</th>" + "<th>" + feature.properties[key] + "</th>"))
           }
-        container.append("Free Flow Speed:<br> <input type='number' name='speed' min='10' max='100'><br>Capacity:<br> <input type='number' name='cap' min='500'> <br>");
+        container.append("Free Flow Speed:<br> <input type='number' name='speed' min='10' max='100' value='30'><br>Capacity:<br> <input type='number' name='cap' min='500' value='2200'> <br>");
         container.append("<input type='checkbox' id='cbox'> <label for='cbox'>Close this link</label> <br>");
         container.append("<button id = 'btnSubmit' type = 'submit' class = 'btn btn-default'>Submit</button>");
 
@@ -306,9 +341,9 @@ MDAP - Traffic Congestion Task Request
             update = linkInfoUpdates[i];
 
             if (update.closed)
-                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.ID + ", closed");
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span> id: " + update.ID + ", closed");
             else {
-                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.ID + ", speed: " + update.speed + ", capacity: " + update.capacity);
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span> id: " + update.ID + ", speed: " + update.speed + "miles/h, capacity: " + update.capacity + "veh/h");
             }
             rem = function(me) {
                 $(me).parent().remove();
@@ -393,7 +428,7 @@ MDAP - Traffic Congestion Task Request
               linksLayer.setStyle(id, { color: '#595959' })
             }
             console.log("finish loading link layer", hash);
-
+            stop_spinner();
             linksLayersCache[hash] = linksLayer;    
         }
         link_layers_to_load = [];
@@ -493,11 +528,14 @@ MDAP - Traffic Congestion Task Request
     };
 
     linksLayerGroup.addTo(map);
-    reloadLink()
+    start_spinner();
+    reloadLink();
     map.on('moveend', reloadLink);
 
 
     $("#formSubmit").click(function(){
+      var datetimepicker2 = $("#datetimepicker2").data("kendoTimePicker");
+      var datetimepicker1 = $("#datetimepicker1").data("kendoTimePicker");
         $.post("../submit_link_update/",
                 {
                     "linkInfoUpdates": JSON.stringify(linkInfoUpdates),
@@ -507,7 +545,7 @@ MDAP - Traffic Congestion Task Request
                     "resolution": parseInt($("#resolution").val()),
                     "vehicleScalar": parseInt($("#vehicleScalar").val()),
                     "kShortestPath": parseInt($("#kShortestPath").val()),
-                    "dispersionFactor": parseInt($("#dispersionFactor").val()),
+                    "dispersionFactor": parseFloat($("#dispersionFactor").val()),
                     'csrfmiddlewaretoken': '{{ csrf_token }}',
                 }, function(data, status) {
                     alert(data);

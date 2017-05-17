@@ -143,16 +143,24 @@ def update_full_record(link_spd, link_to_tmc, tmc_spd, tmc_list, sig):
 
 
 
-def write_link_spd_file(link_spd, file_name):
-    f = file(file_name, "w")
-    f.write(str(len(link_spd)) + "\n")
-    for link_id, spd in link_spd.iteritems():
-        f.write(" ".join([str(e) for e in [link_id, spd]]) + "\n")
-    f.close()
+def write_link_spd_file(link_spd, path, file_name):
+    f = None
+    try:
+        f = open(os.path.join(path, file_name), 'w')
+        f.write(str(len(link_spd)) + "\n")
+        for link_id, spd in link_spd.iteritems():
+            f.write(" ".join([str(e) for e in [link_id, spd]]) + "\n")
+    finally:
+        if f is not None:
+            f.close()
+    try:
+        shutil.copy2(os.path.join(path, file_name), os.path.join(path, "archive", file_name + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")))
+    except:
+        print "can't archive"
 
 
-def read_tmc():
-    TMC2LinkLog = file('TMC2LinkID.csv', 'r').readlines()
+def read_tmc(path):
+    TMC2LinkLog = file(os.path.join(path, 'TMC2LinkID.csv'), 'r').readlines()
 
     tmc_list = list()
     link_to_tmc = dict()
@@ -177,15 +185,13 @@ def read_tmc():
 def get_interval(hour, minute):
     return 4 * hour + minute // 15
 
-def generate_instruction(cur_inter):
-    f = file("instruction", "w")
-    f2 = file("loading_time", "w")
+def generate_instruction(path, cur_inter):
+    f = file(os.path.join(path, "instruction"), "w")
+    f2 = file(os.path.join(path, "loading_time"), "w")
     f.write(str(cur_inter))
     f2.write(str((cur_inter + 1) % 96))
     f.close()
     f2.close()
-
-
 
 
 
@@ -234,24 +240,24 @@ def replace_link(link_name):
 
 
 def modify_link(path):
-    link_name = path + "MNM_input_link"
+    link_name = os.path.join(path, "MNM_input_link")
     rewrite_link(link_name)
     replace_link(link_name)
 
 
 if __name__ == "__main__":
-    path = ""
+    path = os.path.join(os.getcwd())
     sig = Signature()
-    tmc_list, link_to_tmc = read_tmc()
+    tmc_list, link_to_tmc = read_tmc(path)
     once = True
     while(True):
         if datetime.datetime.now().minute in [55, 10, 25 ,40] and once:
             cur_inter = get_interval(datetime.datetime.now().hour, datetime.datetime.now().minute)
             print "Current interval:", cur_inter
             update_full_record(link_spd, link_to_tmc, tmc_spd, tmc_list, sig)
-            write_link_spd_file(link_spd, "MNM_input_spd")
+            write_link_spd_file(link_spd, path, "MNM_input_spd")
             modify_link(path)
-            generate_instruction(cur_inter)
+            generate_instruction(path, cur_inter)
             once = False
         else:
             print "waiting"

@@ -5,6 +5,7 @@ import subprocess
 import math
 import copy
 import shutil
+import os
 
 class Link:
 	from1 = None
@@ -87,7 +88,7 @@ def rewrite_link(request, link_name):
 	return closed_dict
 
 def write_closed_file(path, closed_dict):
-	closed_file_name = path + "MNM_input_workzone"
+	closed_file_name = os.path.join(path, "MNM_input_workzone")
 	if os.path.exists(closed_file_name):
 		os.remove(closed_file_name)
 	f = file(closed_file_name, "w")
@@ -104,7 +105,7 @@ def replace_link(link_name):
 
 
 def modify_link(request, path):
-	link_name = path + "MNM_input_link"
+	link_name = os.path.join(path, "MNM_input_link")
 	print "rewrite link"
 	closed_dict = rewrite_link(request, link_name)
 	print "replace link"
@@ -119,7 +120,7 @@ def modify_link(request, path):
 def read_output(total_inverval, path):
 	output = dict()
 	link_id_list = list()
-	f = file(path + "record/MNM_output_record_interval_volume", 'r')
+	f = file(os.path.join(path, "record/MNM_output_record_interval_volume"), 'r')
 	line = f.readline()
 	words = line.split()
 	num_link = len(words)
@@ -142,7 +143,7 @@ def read_output(total_inverval, path):
 
 def get_link_dic(path):
 	linkDic = dict()
-	link_log = file(path + "Philly.lin", "r").readlines()[1:]
+	link_log = file(os.path.join(path, "Philly.lin"), "r").readlines()[1:]
 	for line in link_log:
 		e = Link(line)
 		if e.linkType == "LWRLK":
@@ -187,20 +188,28 @@ def replace_conf(conf_name):
 
 
 def modify_conf(request, path):
-	conf_name = path + "config.conf"
+	conf_name = os.path.join(path, "config.conf")
 	rewrite_conf(request, conf_name)
 	replace_conf(conf_name)
 
 
 def run_MNM(path):
-	args = path + "dta_response"
-	print "Excuting: ", args 
-	popen = subprocess.Popen(args, stdout=subprocess.PIPE)
-	for line in popen.stdout:
-		print ">>> " + str(line.rstrip())
-    	popen.stdout.flush()
-	popen.wait()
+	args = os.path.join(path, "dta_response")
+	args = args + " " + path
+	print "Excuting: ", args
+	os.system(args)
+	# p = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+	# stdout, stderr = p.communicate()
+	# print "Errors are:"
+	# print stderr
+	# print "Stdout are:"
+	# print stdout
 	print "Finish Excuting"
+	# popen = subprocess.Popen(args, stdout=subprocess.PIPE)
+	# for line in popen.stdout:
+	# 	print ">>> " + str(line.rstrip())
+	# popen.wait()
+	
 	# output = popen.stdout.read()
 	# print output
 
@@ -212,9 +221,10 @@ def get_interval(hour, minute):
 ##################################################
 
 def get_DNL_results(params):
-	path = "/home/hzn/project/dataproject/traffic/backend/MINAMI_backend/offline/"
-	# total_inverval = params["total_inverval"]
-	# total_inverval = 60
+	path = os.path.join(os.getcwd(), "traffic/backend/MINAMI_backend/offline")
+	print "Enter get_DNL_results ", path
+	# total_interval = params["total_interval"]
+	# total_interval = 60
 	resolution = int(params["resolution"])
 	unit_time = 5
 	minute_in_interval = 15
@@ -226,7 +236,8 @@ def get_DNL_results(params):
 	print "start interval is ", start_interval
 	end_interval = get_interval(end_time.hour, end_time.minute)
 	print "end interval is ", end_interval
-	total_inverval = end_interval - start_interval
+	total_interval = end_interval - start_interval
+	print "total assign interval is ", total_interval
 	request = dict()
 
 	print "start modify link"
@@ -237,13 +248,13 @@ def get_DNL_results(params):
 	request["start_assign_interval"] = start_interval
 	request["rec_mode_para"] = resolution / unit_time
 	request["flow_scalar"] = veh_scalar
-	request["total_interval"] = total_inverval * minute_in_interval * 60 / unit_time
+	request["total_interval"] = total_interval * minute_in_interval * 60 / unit_time
 
 	print "start modify conf"
 	modify_conf(request, path)
 	print "end modify conf"
 
 	run_MNM(path)
-	record_interval = total_inverval * minute_in_interval * 60 / resolution
+	record_interval = total_interval * minute_in_interval * 60 / resolution
 	results = read_results(record_interval, path)
 	return results

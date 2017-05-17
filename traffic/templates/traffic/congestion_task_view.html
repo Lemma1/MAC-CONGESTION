@@ -1,4 +1,4 @@
-{% extends "traffic/base.html" %} {% load staticfiles %} {% block title %} MDAP - Traffic Congestion Task Request {% endblock %} {% block style %}
+{% extends "traffic/base_congestion_online.html" %} {% load staticfiles %} {% block title %} MDAP - Traffic Congestion Task Request {% endblock %} {% block style %}
 <link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
 <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
 <link rel="stylesheet" type="text/css" href="{% static 'traffic/leaflet.timedimension.control.css'%}">
@@ -65,37 +65,37 @@
         <div class="form-group row">
             <label for="startTime" class="col-sm-3 form-control-label">Task Name</label>
             <div class="col-sm-9">
-                <input class="form-control" id="taskName">
+                <input class="form-control" id="taskName" readonly>
             </div>
         </div>
         <div class="form-group row">
             <label for="startTime" class="col-sm-3 form-control-label">Start Time</label>
             <div class="col-sm-9">
-                <input class="form-control" id="startTime">
+                <input class="form-control" id="startTime" readonly>
             </div>
         </div>
         <div class="form-group row">
             <label for="endTime" class="col-sm-3 form-control-label">End Time</label>
             <div class="col-sm-9">
-                <input class="form-control" id="endTime">
+                <input class="form-control" id="endTime" readonly>
             </div>
         </div>
         <div class="form-group row">
             <label for="vehicleScalar" class="col-sm-3 form-control-label">Vehicle Scalar</label>
             <div class="col-sm-9">
-                <input class="form-control" id="vehicleScalar">
+                <input class="form-control" id="vehicleScalar" readonly>
             </div>
         </div>
         <div class="form-group row">
             <label for="kShortestPath" class="col-sm-3 form-control-label">Kshortest Path</label>
             <div class="col-sm-9">
-                <input class="form-control" id="kShortestPath">
+                <input class="form-control" id="kShortestPath" readonly>
             </div>
         </div>
         <div class="form-group row">
             <label for="dispersionFactor" class="col-sm-3 form-control-label">Dispersion Factor</label>
             <div class="col-sm-9">
-                <input class="form-control" id="dispersionFactor">
+                <input class="form-control" id="dispersionFactor" readonly>
             </div>
         </div>
         <div>
@@ -129,6 +129,49 @@
 <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/7.1.0/bootstrap-slider.min.js"></script>
 <script type="text/javascript" src="{% static 'traffic/jquery-ui/jquery-ui.js' %}"></script>
 <script>
+
+    var stagingZoomLevels = [15, 13, 0];
+    var numlanesWithZoomPhilly = [1, 2, 3]
+    var loaded_link_ids = [];
+    var threshold1 = 0.10
+    var threshold2 = 0.25
+    var threshold3 = 0.40
+    var spinner = null;
+
+    start_spinner = function() {
+        console.log("start spinner");
+        var spinneropts = {
+            lines: 13, // The number of lines to draw
+            length: 20, // The length of each line
+            width: 10, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 60, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+        };
+        var target = document.getElementById('map')
+        shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
+        $('#map').prepend(shade)
+        if (spinner) {
+            spinner.spin(target)
+        } else {
+            spinner = new Spinner(spinneropts).spin(target);
+        }
+    }
+
+    stop_spinner = function() {
+        // console.log("remove spinner");
+        if (spinner != null) {
+            spinner.stop()
+            $("#shade").remove()
+        }
+    }
+
     String.prototype.hashCode = function() {
         var hash = 0;
         if (this.length == 0) return hash;
@@ -141,18 +184,23 @@
     }
 
     function getZoomLevel(zoom) {
-        for (var i = 0; i < zoomLevels.length; i++) {
-            if (zoom >= zoomLevels[i]) {
-                return zoomLevels[i]
+        for (var i = 0; i < stagingZoomLevels.length; i++) {
+            if (zoom >= stagingZoomLevels[i]) {
+                return stagingZoomLevels[i]
             }
         }
     }
 
     function getBlockSize(zoom) {
         var zoomLevel = getZoomLevel(zoom)
-        if (zoomLevel == zoomLevels[0]) return [0.017, 0.011]
-        if (zoomLevel == zoomLevels[1]) return [0.017, 0.011]
-        if (zoomLevel == zoomLevels[2]) return [0.017 * 12, 0.011 * 12]
+        // let xzoom = .005 * Math.pow(2, 17-zoom);
+        // let yzoom = .003 * Math.pow(2, 17-zoom);
+        // let xzoom = .005 * Math.pow(2, 19-zoom);
+        // let yzoom = .003 * Math.pow(2, 19-zoom);
+        // return [xzoom, yzoom];
+        if (zoomLevel == stagingZoomLevels[0]) return [0.017 * 2, 0.011 * 2]
+        if (zoomLevel == stagingZoomLevels[1]) return [0.017 * 4, 0.011 * 4]
+        if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
     }
 
     function hashLatLng(a, b, zoom) {
@@ -177,11 +225,7 @@
         }
     }
 
-    var threshold1 = 0.3
-    var threshold2 = 0.5
-    var threshold3 = 0.7
-
-    var taskID;
+    var taskID = null;
     var parameter;
     var link_values = {}
     var interval_request_count = Array(1000)
@@ -206,6 +250,9 @@
                 selecting_task_warned = true
                 return
             }
+            if (start_time == null) {
+                return
+            }
             var index = (ev.time.getTime() - start_time.getTime()) / unitTime / 1000
 
             if (map.timeDimension.getCurrentTimeIndex() == 0) {
@@ -220,18 +267,21 @@
 
 
 
-            var link_ids = []
-            linksLayerGroup.eachLayer(function(layer) {
-                for (var i in layer.getLayers())
-                    link_ids.push(layer.getLayers()[i].feature.properties.no)
-            })
+            // var link_ids = []
+            // linksLayerGroup.eachLayer(function(layer) {
+            //     for (var i in layer.getLayers())
+            //         link_ids.push(layer.getLayers()[i].feature.properties.no)
+            // })
+            let link_ids = loaded_link_ids;
+            // console.log("_onNewTimeLoading, links length", link_ids.length)
             if (link_ids.length == 0) return
 
-            length_per_request = 3
+            length_per_request = 5
             for (var i = 0; i < length_per_request; i++) {
                 interval_request_count[index + i]++
             }
             var curTime = new Date(start_time)
+            console.log("update send link id: ", link_ids.length)
             $.post("../get_congestion/", {
                         taskid: taskID,
                         time: ev.time.toString().split('(')[0],
@@ -240,18 +290,22 @@
                         'csrfmiddlewaretoken': '{{ csrf_token }}',
                     },
                     function(data, textStatus) {
-                        for (var time = 0; time < data.length; time++) {
-                            link_values[index + time] = data[time]
+                        for (var offset = 0; offset < data.length; offset++) {
+                            key = index + offset
+                            link_values[key] = data[offset]
                         }
+                        console.log("finished get link value")
                     }
                 )
         },
 
         isReady: function(time) {
+            // console.log("isReady");
+            // console.log(link_values)
             if (start_time == null) return false
             var index = (time.getTime() - start_time.getTime()) / unitTime / 1000
             if (link_values[index] != null) {
-                stop_spinner()
+                // stop_spinner();
                 return true
 
             } else {
@@ -260,22 +314,34 @@
         },
 
         _update: function() {
-            if (!this.isReady(map.timeDimension.getCurrentTime())) return
+            console.log("_update");
+            if (!this.isReady(map.timeDimension.getCurrentTime())) {
+                console.log("cannot update");
+                stop_spinner();
+                return;
+            }
+            // console.log(link_values);
             linksLayerGroup.eachLayer(function(layer) {
-                layer.setStyle(function(feature) {
+                for (let id of layer.link_ids) {
                     var index = map.timeDimension.getCurrentTimeIndex()
                     var values = link_values[index]
-                    if (values[feature.properties.no] !== undefined) {
-                        return {
-                            color: getColor(values[feature.properties.no])
-                        }
-                    } else {
-                        return {
-                            color: "#d3d3d3"
-                        }
-                    }
-                })
+                    layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    // if (index == 0) {
+                    //     layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    // }
+                    // else {
+                    //     var old_values = link_values[index - 1]
+                    //     if ((old_values != null) && (id in old_values) && (getColor(values[id]) == getColor(old_values[id]))) {
+                    //         continue;
+                    //     }
+                    //     else {
+                    //         layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    //     }
+                    // }
+                }
             })
+            stop_spinner();
+            console.log("colors updated");
 
             // this._baseLayer.setStyle(function(feature) {
             //     return {color: getColor(Math.random())}
@@ -289,7 +355,7 @@
             this._superSliderTimeValueChanged(value);
             clean_cache()
             linksLayerGroup.eachLayer(function(layer) {
-                layer.setStyle(function(feature) {
+                layer.setFeatureStyle(function(feature) {
                     return {
                         color: "#d3d3d3"
                     }
@@ -354,6 +420,15 @@
         // timeDimensionControl: true
     });
 
+    function getBounds() {
+        let bounds = map.getBounds();
+        let south = Math.max(bounds.getSouth(), 39.914241);
+        let north = Math.min(bounds.getNorth(), 40.203163);
+        let west = Math.max(bounds.getWest(), -75.521439);
+        let east = Math.min(bounds.getEast(), -74.803599);
+        return L.latLngBounds(L.latLng(south, west), L.latLng(north, east));
+    }
+
     var controller = new L.Control.TimeDimensionCustom({
         playerOptions: {
             loop: true,
@@ -362,6 +437,7 @@
         maxSpeed: 3,
         minSpeed: 1
     })
+
     var playStatus = false;
     map.addControl(controller);
     controller._player.on("play", function() {
@@ -462,8 +538,7 @@
     var linkInfoUpdates = [];
 
     var speed = 65;
-    // var zoomLevels = [15, 13, 0];
-    var zoomLevels = [16, 14, 0];
+
     var speedWithZoom = [
         [0, 1, 5, 15, 20, 25, 35, 45, 55, 65],
         [35, 45, 55, 65],
@@ -473,58 +548,11 @@
         30,
         50
     ]
-    var numlanesWithZoomPhilly = [1, 2, 3]
     var excludeTypeWithZoom = [
         [],
         [],
         []
     ];
-
-
-    for (var i = 0; i < zoomLevels.length; i++) {
-        if (map.getZoom() >= zoomLevels[i]) {
-            numlanes = numlanesWithZoomPhilly[i];
-            break;
-        }
-    }
-    var blockWidth = getBlockSize(map.getZoom())[0]
-    var blockHeight = getBlockSize(map.getZoom())[1]
-    var bounds = map.getBounds();
-    for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
-        for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
-            var NE_lat = lat + blockHeight / 2
-            var NE_lng = lng + blockWidth / 2
-            var SW_lat = lat - blockHeight / 2
-            var SW_lng = lng - blockWidth / 2
-
-            get_link = function(lat, lng, zoom) {
-                $.get("../get_links/", {
-                        numlanes: numlanes,
-                        NE_lat: NE_lat,
-                        NE_lng: NE_lng,
-                        SW_lat: SW_lat,
-                        SW_lng: SW_lng
-                    },
-                    function(data, textStatus) {
-
-                        displayData = shift_features_for_two_ways(data, map.getZoom())
-
-                        var linksLayer = L.geoJson(displayData, {
-                            style: {
-                                color: '#d3d3d3',
-                                weight: '3',
-                                opacity: '0.7'
-                            },
-                            onEachFeature: onEachFeature
-                        });
-                        linksLayersCache[hashLatLng(lat, lng, zoom)] = linksLayer
-                        linksLayerGroup.addLayer(linksLayer)
-                    }, 'json');
-            }
-            get_link(lat, lng, map.getZoom())
-        }
-    }
-
 
 
 
@@ -556,114 +584,226 @@
     };
 
 
-    reloadLink = function() {
-        var bounds = map.getBounds();
-        for (var i = 0; i < zoomLevels.length; i++) {
-            if (map.getZoom() >= zoomLevels[i]) {
-                var numlanes = numlanesWithZoomPhilly[i];
-                break;
-            }
+    function massageLinkLayer(data) {
+        let d =  {
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "EPSG:4326"
+                }
+            },
+            "type": "FeatureCollection",
+            "features": []
         }
-        // Copy cache
-        // Remove layers that're not in boundary
-        // From map delete all other layers
-        var layersToRemove = []
+        for (let i = 0; i < data.length; i++) {
+            d.features[i] = JSON.parse(data[i].fields.geom_str)[0];
+        }
+        return d;
+    }
+
+    var link_layers_to_load = [];
+    var linksRequests = [];
+    var linkColors = {};
+
+    reloadLinkLayer = function () {
+        console.log("reloadLinkLayer reloading", link_layers_to_load.length, "blocks");
+        for (let i = 0; i < link_layers_to_load.length; i++) {
+            let tuple = link_layers_to_load[i];
+            let displayData = tuple[0];
+            let hash = tuple[1];
+            console.log("loading link layer", hash, displayData.features.length);
+            let linksLayer = L.vectorGrid.slicer(displayData, {
+                                    vectorTileLayerStyles: {
+                                        sliced: {
+                                            color: "#595959",
+                                            weight: '3',
+                                            opacity: '0.7'
+                                        },
+                                    },
+                                    maxZoom: 20,
+                                    interactive: true,
+                                    getFeatureId (f) { return f.properties.no; }
+                                });
+
+            // linksLayer.on("click", () => console.log("link clicked"));
+            // linksLayer.on("click", onClickLink);
+            console.log("finish loading link layer", hash);
+
+            let link_ids = [];
+            for (let link of displayData.features) {
+                loaded_link_ids.push(link.properties.no);
+                link_ids.push(link.properties.no);
+            }
+
+            linksLayer.link_ids = link_ids;
+
+            if (start_time != null){
+                // if (link_ids.length == 0) {
+                //     console.log("No link to color");
+                //     continue
+                // }
+
+                // var index = map.timeDimension.getCurrentTimeIndex()
+                // console.log("first send link id: ", link_ids.length)
+                // $.post("../get_congestion/", {
+                //         taskid: taskID,
+                //         time: start_time.toString().split('(')[0],
+                //         index: index,
+                //         link_id: link_ids,
+                //         length: 1,
+                //         'csrfmiddlewaretoken': '{{ csrf_token }}',
+                //     },
+                //     function(data, textStatus) {
+                //         data = data[0]
+                //         clean_cache()
+                //         console.log("setting color");  
+                //         // console.log(data);
+                //         for (let id of link_ids) {
+                //             linkColors[data[id]] = getColor(data[id]);
+                //             linksLayer.setFeatureStyle(id, { color: linkColors[data[id]] });
+                //         }
+                //         console.log("colors loaded");
+                //     }
+                // )
+                if (map.timeDimension.getCurrentTime() != null) {
+                    // console.log("start color the links");
+                    if (!linksTimeLayer.isReady(map.timeDimension.getCurrentTime())){
+                        // console.log('not ready')
+                        let e = {};
+                        e.time = map.timeDimension.getCurrentTime();
+                        linksTimeLayer._onNewTimeLoading(e);
+                        while(linksTimeLayer.isReady(map.timeDimension.getCurrentTime())){
+                            // console.log("waiting");
+                            linksTimeLayer._update();
+                        }
+                    }
+                    else {
+                        // console.log('ready')
+                        linksTimeLayer._update();
+                    }
+                }
+                
+            }
+            else {
+                for (let id of link_ids) {
+                    // linksLayer.setFeatureStyle(id, { color: "#111111" });
+                }                
+            }
+            linksLayerGroup.addLayer(linksLayer);
+            linksLayersCache[hash] = linksLayer;
+        }
+        stop_spinner();
+        link_layers_to_load = [];
+    }
+
+    // This function removes and adds blocks of links
+    reloadLink = function() {
+        console.log('Current zoom level:', map.getZoom());
+        var bounds = getBounds();
+
+        // Cancel all our old requests
+        for (let l of linksRequests) {
+            l.abort();
+        }
+        linksRequests = [];
+
+        // for (let i = 0; i < stagingZoomLevels.length; i++) {
+        //     if (map.getZoom() >= stagingZoomLevels[i]) {
+        //         var numlanes = numlanesWithZoomPhilly[i];
+        //         break;
+        //     }
+        // }
+
         var zoom = map.getZoom()
         var blockWidth = getBlockSize(zoom)[0]
         var blockHeight = getBlockSize(zoom)[1]
         for (var key in linksLayersCache) {
-            lag = key.split("|")[0]
-            lng = key.split("|")[1]
+            // console.log('Current key is:', key);
+            var lat = key.split("|")[0]
+            var lng = key.split("|")[1]
             zoomLevel = key.split("|")[2]
             if ((lat < bounds._southWest.lat - blockHeight || lat > bounds._northEast.lat + blockHeight ||
-                    lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth ||
-                    zoomLevel != getZoomLevel(map.getZoom())) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                    lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
+                    || zoomLevel > zoom) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                console.log('removing link layer: ', key);
                 linksLayerGroup.removeLayer(linksLayersCache[key])
             }
         }
 
-        for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
-            for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {
+        for (let i = 0; i < stagingZoomLevels.length; i++){
+          if (zoom >= stagingZoomLevels[i]){
+            var c_zoom = stagingZoomLevels[i]
+            console.log('processing zoom level: ', c_zoom);
+            blockWidth = getBlockSize(c_zoom)[0]
+            blockHeight = getBlockSize(c_zoom)[1]
+            // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
+            for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+              for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {       
+                // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
                 var NE_lat = lat + blockHeight / 2
                 var NE_lng = lng + blockWidth / 2
                 var SW_lat = lat - blockHeight / 2
                 var SW_lng = lng - blockWidth / 2
-                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) {
+                if (linksLayersCache[hashLatLng(lat, lng, c_zoom)]) {
                     // Layer is in cache
-                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, zoom)]
+                    console.log('Layer is in cache: ', hashLatLng(lat, lng, c_zoom));
+                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, c_zoom)]
                     if (!linksLayerGroup.hasLayer(cachedLayer)) {
-                        // Layer is not on map, put it on
                         //This is to prevent loading layers with previous color
-                        cachedLayer.eachLayer(function(layer) {
-                            layer.setStyle(function(feature) {
+                        if (playStatus) {
+                            // cachedLayer.eachLayer(function(layer) {
+                            //     layer.setStyle(function(feature) {
+                            //         return {
+                            //             color: "#d3d3d3"
+                            //         }
+                            //     })
+                            // })
+                            cachedLayer.setFeatureStyle(function (feature) {
                                 return {
-                                    color: "#d3d3d3"
+                                    color : "#d3d3d3"
                                 }
                             })
-                        })
+                        }
+                        else {
+
+                        }
                         linksLayerGroup.addLayer(cachedLayer)
                     }
-                } else {
-                    // Layer is not in cache
-                    (function(lat, lng, zoom) {
-                        $.get("../get_links/", {
-                                numlanes: numlanes,
-                                NE_lat: NE_lat,
-                                NE_lng: NE_lng,
-                                SW_lat: SW_lat,
-                                SW_lng: SW_lng
-                            },
-                            function(data, textStatus) {
-
-                                displayData = shift_features_for_two_ways(data, map.getZoom())
-
-                                var linksLayer = L.geoJson(displayData, {
-                                    style: {
-                                        color: '#d3d3d3',
-                                        weight: '3',
-                                        opacity: '0.7'
-                                    },
-                                    onEachFeature: onEachFeature
-                                });
-                                if (linksLayersCache[hashLatLng(lat, lng, zoom)]) return
-                                linksLayersCache[hashLatLng(lat, lng, zoom)] = linksLayer
-                                linksLayerGroup.addLayer(linksLayer)
-
-                                if (!playStatus && taskID) {
-                                    var link_ids = []
-                                    for (var i in linksLayer.getLayers())
-                                        link_ids.push(linksLayer.getLayers()[i].feature.properties.no)
-                                    if (link_ids.length == 0) return
-                                    var index = map.timeDimension.getCurrentTimeIndex()
-                                    $.post("../get_congestion/", {
-                                            taskid: taskID,
-                                            time: map.timeDimension.getCurrentTime().toString().split('(')[0],
-                                            link_id: link_ids,
-                                            length: 1,
-                                            'csrfmiddlewaretoken': '{{ csrf_token }}',
-                                        },
-                                        function(data, textStatus) {
-
-                                            if (playStatus) return
-                                            data = data[0]
-
-                                            clean_cache()
-
-                                            linksLayer.setStyle(function(feature) {
-                                                // var index = (time.getTime() - start_time.getTime()) / 30000
-                                                return {
-                                                    color: getColor(data[feature.properties.no])
-                                                }
-                                            })
-                                        }
-                                    )
-                                }
-                            }, 'json');
-                    })(lat, lng, zoom)
+                } 
+                else {
+                  console.log('adding link layer: ', hashLatLng(lat, lng, c_zoom));
+                  // Layer is not in cache
+                  (function(lat, lng, zoom) {
+                    // Save the link request so we can cancel later
+                    let req = $.get("../get_links/", {
+                            numlanes: numlanesWithZoomPhilly[i],
+                            NE_lat: NE_lat,
+                            NE_lng: NE_lng,
+                            SW_lat: SW_lat,
+                            SW_lng: SW_lng
+                        },
+                        function(data, textStatus) {
+                            c_zoom = stagingZoomLevels[i]
+                            data = massageLinkLayer(data);
+                            let displayData = shift_features_for_two_ways(data, map.getZoom())
+                            // if (linksLayersCache[hashLatLng(lat, lng, zoom)]) continue
+                            
+                            link_layers_to_load.push([displayData, hashLatLng(lat, lng, c_zoom)])
+                            console.log("links loaded", displayData.features.length);
+                        }, 'json');
+                    linksRequests.push(req);
+                  })(lat, lng, zoom)
                 }
+              }
             }
+          }
         }
+
+        console.log("Length of the buffer: ", Object.keys(linksLayersCache).length)
+        $.when.apply(null, linksRequests).done(reloadLinkLayer);
     };
+    start_spinner();
+    reloadLink();
     map.on('moveend', reloadLink);
 
 
@@ -698,8 +838,8 @@
                         var $li = $("<li>").bind('click', {
                             id: data.tasks_info[taski][1]
                         }, function(event) {
-                            clean_cache()
-                            start_spinner()
+                            clean_cache();
+                            start_spinner();
                             $.get("../get_parameter/", {
                                 taskid: event.data.id
                             }, function(data, textStatus) {
@@ -727,8 +867,13 @@
                                 }
                                 linksTimeLayer._timeDimension.setAvailableTimes(times, "replace")
                                 linksTimeLayer._timeDimension.setCurrentTime(times[0])
+                                console.log(map.timeDimension.getCurrentTime());
+                                // linksLayersCache = {};
+                                // reloadLink(); 
+                                // linksTimeLayer._update();
                             })
                             taskID = data.tasks_info[taski0][1]
+
                         })
                         $li.append($a)
                         $("#taskdropdown").append($li)
@@ -801,37 +946,6 @@
         }
     })
 
-    var spinner = null
-
-    start_spinner = function() {
-        var spinneropts = {
-            lines: 13, // The number of lines to draw
-            length: 20, // The length of each line
-            width: 10, // The line thickness
-            radius: 30, // The radius of the inner circle
-            corners: 1, // Corner roundness (0..1)
-            direction: 1, // 1: clockwise, -1: counterclockwise
-            color: '#000', // #rgb or #rrggbb or array of colors
-            speed: 1, // Rounds per second
-            trail: 60, // Afterglow percentage
-            shadow: false, // Whether to render a shadow
-            hwaccel: false, // Whether to use hardware acceleration
-            zIndex: 2e9, // The z-index (defaults to 2000000000)
-        };
-        var target = document.getElementById('map')
-        shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
-        $('#map').prepend(shade)
-        if (spinner) {
-            spinner.spin(target)
-        } else {
-            spinner = new Spinner(spinneropts).spin(target);
-        }
-    }
-
-    stop_spinner = function() {
-        spinner.stop()
-        $("#shade").remove()
-    }
 
 
 

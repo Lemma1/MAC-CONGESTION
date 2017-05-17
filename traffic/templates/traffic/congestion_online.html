@@ -307,17 +307,33 @@
 
         _update: function() {
             if (!this.isReady(map.timeDimension.getCurrentTime())) return;
+            // linksLayerGroup.eachLayer(function(layer) {
+            //     for (let id of layer.link_ids) {
+            //         var index = map.timeDimension.getCurrentTimeIndex()
+            //         var values = link_values[index]
+            //         // if (values[id]) {
+            //             layer.setFeatureStyle(id, { color: getColor(values[id]) });
+            //         // }
+            //     }
+            // });
             linksLayerGroup.eachLayer(function(layer) {
                 for (let id of layer.link_ids) {
                     var index = map.timeDimension.getCurrentTimeIndex()
                     var values = link_values[index]
-                    if (values[id]) {
+                    if (index == 0) {
                         layer.setFeatureStyle(id, { color: getColor(values[id]) });
                     }
-                   
-
+                    else {
+                        var old_values = link_values[index - 1]
+                        if ((old_values != null) && (id in old_values) && (getColor(values[id]) == getColor(old_values[id]))) {
+                            continue;
+                        }
+                        else {
+                            layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                        }
+                    }
                 }
-            });
+            })
             console.log("colors updated");
         }
     });
@@ -495,7 +511,6 @@
 
     var linksLayersCache = {}
     var linksLayerGroup = L.featureGroup();
-    // map.on("click", () => { console.log ("map clicked")})
 
     linksTimeLayer = new LinkTimeLayer(linksLayerGroup);
 
@@ -554,10 +569,9 @@
         let west = Math.max(bounds.getWest(), -75.521439);
         let east = Math.min(bounds.getEast(), -74.803599);
         return L.latLngBounds(L.latLng(south, west), L.latLng(north, east));
-
     }
 
-    var bounds = getBounds();
+    // var bounds = getBounds();
 
     // for (var i = 0; i < stagingZoomLevels.length; i++) {
     //     if (map.getZoom() >= stagingZoomLevels[i]) {
@@ -581,8 +595,6 @@
             times.push(t)
         }
         map.timeDimension.setAvailableTimes(times, "replace")
-        $("#shade").remove()
-        spinner.stop()
     }
 
     var link_layers_to_load = [];
@@ -757,6 +769,7 @@
                 continue
             }
             var index = map.timeDimension.getCurrentTimeIndex()
+            // console.log("send link id: ", link_ids.length)
             $.post("../get_online_congestion/", {
                     start_time: start_time.toString().split('(')[0],
                     index: index,
@@ -778,6 +791,8 @@
                     console.log("colors loaded");
                 }
             )
+            $("#shade").remove()
+            spinner.stop()
             linksLayersCache[hash] = linksLayer;    
         }
         link_layers_to_load = [];
@@ -786,7 +801,7 @@
     // This function removes and adds blocks of links
     reloadLink = function() {
         console.log('Current zoom level:', map.getZoom());
-        bounds = getBounds();
+        var bounds = getBounds();
 
         // Cancel all our old requests
         for (let l of linksRequests) {
@@ -802,8 +817,8 @@
         // }
 
         var zoom = map.getZoom()
-        var blockWidth = getBlockSize(map.getZoom())[0]
-        var blockHeight = getBlockSize(map.getZoom())[1]
+        var blockWidth = getBlockSize(zoom)[0]
+        var blockHeight = getBlockSize(zoom)[1]
         for (var key in linksLayersCache) {
             // console.log('Current key is:', key);
             var lat = key.split("|")[0]

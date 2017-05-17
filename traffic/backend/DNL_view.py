@@ -48,14 +48,14 @@ def query_finished(tup):
 	this_request.parameter = parameter
 	this_request.finish = 1
 	this_request.save()
-	file_lock = "/home/hzn/project/dataproject/traffic/backend/offline_task_on"
+	# file_lock = "/home/hzn/project/dataproject/traffic/backend/offline_task_on"
+	file_lock = os.path.join(os.getcwd(), "traffic/backend/offline_task_on")
 	os.remove(file_lock)
 	end = time.time()
 	print "done callback"
 
 
 def DNL_bridge(params, ID):
-	file_lock = "/home/hzn/project/dataproject/traffic/backend/offline_task_on"
 	params['startTime'] = parser.parse(params['startTime'].split("(")[0])
 	params['endTime'] =  parser.parse(params['endTime'].split("(")[0])
 	result = get_DNL_results(params)
@@ -64,7 +64,8 @@ def DNL_bridge(params, ID):
 
 # @permission_required(perm= 'traffic.congestion', raise_exception= True)
 def submit_link_update(request):
-	file_lock = "/home/hzn/project/dataproject/traffic/backend/offline_task_on"
+	print "checking...: ", os.path.join(os.getcwd(), "traffic/backend/offline_task_on")
+	file_lock = os.path.join(os.getcwd(), "traffic/backend/offline_task_on")
 	if (os.path.isfile(file_lock)):
 		return HttpResponse("Other task is going on. Wait for a while")
 	with open(file_lock, "w") as f:
@@ -83,7 +84,7 @@ def submit_link_update(request):
 
 	p = pool.apply_async(DNL_bridge, args = (parameter, taskID), callback = query_finished)
 
-	return HttpResponse("Task successfully sent" + taskID + ", please check back 15 mintues later.")
+	return HttpResponse("Task successfully sent " + taskID + ", please check back 15 mintues later.")
 
 # @permission_required(perm= 'traffic.congestion', raise_exception= True)
 def submit_link_update_online(request):
@@ -108,7 +109,7 @@ def get_tasks(request):
 def delete_task(request):
 	taskID = request.GET.get("taskID")
 	Philly_request.objects.get(taskid__exact = taskID).delete()
-	file_lock = "/home/hzn/project/dataproject/traffic/backend/offline_task_on"
+	file_lock = os.path.join(os.getcwd(), "traffic/backend/offline_task_on")
 	try:
 		os.remove(file_lock)
 	except Exception: pass
@@ -126,6 +127,7 @@ def get_parameter(request):
 from django.db.models import F
 # @permission_required(perm= 'traffic.congestion', raise_exception= True)
 def get_congestion(request):
+	# print request.POST
 	taskid = int(request.POST['taskid'])
 	length = int(request.POST['length'])
 	time = parser.parse(request.POST['time'])
@@ -136,15 +138,24 @@ def get_congestion(request):
 	index = int(time_delta.total_seconds() / int(request_object.parameter['resolution'])) - 1
 	link_id = request.POST.getlist('link_id[]')
 	link_id = [int(s) for s in link_id]
+	print "get link ids: ", len(link_id)
 	links = Philly_link.objects.filter(no__in=link_id)
 
-	values = list(Philly_congestion_array.objects.filter(request__taskid=taskid).filter(link__in=links).annotate(link_id = F('link__no')))
+	values = Philly_congestion_array.objects.filter(request__taskid=taskid).filter(link__in=links).annotate(link_id = F('link__no'))
+	values = values.values_list("link_id", "values")
+	# values = [
+	# 			dict([
+	# 				(obj.link_id, obj.values[index+offset])
+	# 				for obj in values
+	# 			])
+	# 			for offset in xrange(min(length, len(values[0].values)-index))
+	# 		]
 	values = [
 				dict([
-					(obj.link_id, obj.values[index+offset])
-					for obj in values
+					(val[0], val[1][index+offset])
+					for val in values
 				])
-				for offset in xrange(min(length, len(values[0].values)-index))
+				for offset in xrange(min(length, len(values[0][1])-index))
 			]
 	# values = (values)
 	return HttpResponse(json.dumps(values), content_type ="application/json")

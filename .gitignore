@@ -7,5 +7,6 @@ celerybeat.pid
 celerybeat-schedule
 gis_to_geoJSON.js
 real_time_tt.html
-settings.py
 path_table
+MNM_output*
+MNM_input*
