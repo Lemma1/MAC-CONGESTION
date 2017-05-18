@@ -275,7 +275,7 @@
 
             get_online_congestion = function(index) {
                 $.post("../get_online_congestion/", {
-                        start_time: start_time.toString().split('(')[0],
+                        start_time: use_for_query_start_time.toString().split('(')[0],
                         index: index,
                         link_id: link_ids,
                         length: length_per_request,
@@ -656,12 +656,14 @@
 
     sent_init_ajex = true
 
-
+    var use_for_query_start_time = null;
     init_loading_count += 1
     $.get("../get_latest_online_time/", {}, function(data, textStatus) {
+        console.log("coming data: ", data)
         start_time = new Date(data)
-        console.log("initialized start time", data);
-        start_time.setHours(start_time.getHours())
+        use_for_query_start_time = new Date(data)
+        console.log("initialized start time", start_time);
+        start_time.setHours(start_time.getHours() + 1)
         // start_time.setHours(start_time.getHours()+4)
         init_loading_count -= 1
         if (init_loading_count == 0) {
@@ -771,7 +773,7 @@
             var index = map.timeDimension.getCurrentTimeIndex()
             // console.log("send link id: ", link_ids.length)
             $.post("../get_online_congestion/", {
-                    start_time: start_time.toString().split('(')[0],
+                    start_time: use_for_query_start_time.toString().split('(')[0],
                     index: index,
                     link_id: link_ids,
                     length: 1,
