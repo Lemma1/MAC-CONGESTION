@@ -233,9 +233,8 @@ def get_latest_online_time(request):
 	# loading = Philly_online_loading.objects.latest('time')
 	other_loading = all_loading[1:]
 	# print other_loading
-	for ol in other_loading:
-		print "delete ", ol.time
-		Philly_congestion_array_online.objects.filter(loading__exact = ol).delete()
+	print "delete ", ol.time
+	Philly_congestion_array_online.objects.filter(loading__in = ol).delete()
 		# ol.delete()
 
 	print "get_latest_online_time:", loading.id
