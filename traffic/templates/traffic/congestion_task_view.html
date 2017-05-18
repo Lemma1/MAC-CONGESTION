@@ -120,6 +120,9 @@
 <div id="map_area">
     <div id="map"></div>
 </div>
+<div id="wrapper" style="text-align: center">    
+    <div id="forplot" class="container centered" style="display: inline-block;"></div>
+</div>
 
 {% endblock %} {% block script %}
 <script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
@@ -504,7 +507,8 @@
     }).addTo(map);
     var linksTimeLayer;
 
-    function onEachFeature(feature, layer) {
+    function onEachFeature(event) {
+        if (taskID == null) return;
         popup = "";
         popup += "Full Name: " + feature.properties.full_name + "\n";
         popup += "Type: " + feature.properties.st_type + "\n";
@@ -522,9 +526,15 @@
             map.closePopup();
         })
         container.append($button)
-
-        layer.bindPopup(container[0], {"keepInView": true});
+        L.popup()
+            .setContent(container[0])
+            .setLatLng(event.latlng)
+            .openOn(map);
+        L.DomEvent.stop(event);
+        // e.layer.bindPopup(container[0], {"keepInView": true});
     }
+
+
     map.on('popupopen', function(e) {
       $("#chart").remove()
     });
@@ -626,7 +636,7 @@
                                 });
 
             // linksLayer.on("click", () => console.log("link clicked"));
-            // linksLayer.on("click", onClickLink);
+            linksLayer.on("click", onEachFeature);
             console.log("finish loading link layer", hash);
 
             let link_ids = [];
@@ -888,23 +898,27 @@
 
 
     var renderPlot = function(data) {
+        console.log("go to renderPlot", data)
         $("#chart").remove()
         chart = $("<div/>", {
             id: "chart",
-            style: "position: absolute;\
-                top: 0;\
-                left: 0;\
-                width: 70%;\
-                height: 30%; "
+            // style: "position: absolute; top: 0; left: 0; width: 70%; height: 30%; "
+            style: "position: float;",
+            class: "container centered",
         })
-        $("#map_area").append(chart)
-        $("#map_area").on("click", function(e) {
-            $("#chart").remove()
-        })
+        $("#forplot").append(chart)
+        // $("#forplot").on("click", function(e) {
+        //     $("#chart").remove()
+        // })
 
         $.jqplot.config.enablePlugins = true;
 
-        var plot3 = $.jqplot('chart', data, {
+        // for (let i=0; i<data.length; i++){
+        //     data[i][0] = data[i][0].split(' ')[1]
+        //     data[i][0] = data[i][0].split('+')[0]
+        // }
+
+        var plot3 = $.jqplot('chart', [data], {
             title: 'Value over time',
             axes: {
                 xaxis: {
@@ -912,9 +926,9 @@
                     rendererOptions: {
                         tickRenderer: $.jqplot.CanvasAxisTickRenderer
                     },
-                    tickInterval: '120 second',
+                    tickInterval: '300 second',
                     tickOptions: {
-                        formatString: '%H:%M:%S',
+                        formatString: '%Y-%m-%d %H:%M:%S%G',
                         angle: -40
                     }
                 }
@@ -923,12 +937,13 @@
     }
 
     var plotHistory = function(link_id) {
+        console.log("go to plotHistory")
         $.get("../get_congestion_for_link/", {
                 link_id: link_id,
                 taskid: taskID
             },
             function(data, textStatus) {
-                renderPlot([data])
+                renderPlot(data)
             }
         )
     }
@@ -940,8 +955,9 @@
             },
             function(data) {
                 $("#deleteTask").prop( "disabled", true );
-                get_tasks()
-                alert(data)
+                taskID = null;
+                get_tasks();
+                alert(data);
             })
         }
     })

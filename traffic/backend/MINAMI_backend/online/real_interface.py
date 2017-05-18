@@ -87,7 +87,7 @@ def read_results(total_inverval, path):
 
 def get_realtime_feed():
 	record_freq = 6
-	path = os.path.join(os.getcwd(), "traffic/backend/MINAMI_backend/online")
+	path = os.path.join(os.getcwd())
 	total_inverval = 60 * 60 / 5 / record_freq
 	results = read_results(total_inverval, path)
 	return results

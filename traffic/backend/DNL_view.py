@@ -228,7 +228,8 @@ def get_online_congestion(request):
 
 # @permission_required(perm= 'traffic.congestion', raise_exception= True)
 def get_latest_online_time(request):
-	loading = Philly_online_loading.objects.all().order_by('-time')[0]
+	# loading = Philly_online_loading.objects.all().order_by('-time')[0]
+	loading = Philly_online_loading.objects.latest('time')
 	print "get_latest_online_time:", loading.id
 	return HttpResponse(json.dumps(loading.time.isoformat()), content_type ="application/json")
 

@@ -661,7 +661,7 @@
     $.get("../get_latest_online_time/", {}, function(data, textStatus) {
         start_time = new Date(data)
         console.log("initialized start time", data);
-        start_time.setHours(start_time.getHours())
+        start_time.setHours(start_time.getHours() + 1)
         // start_time.setHours(start_time.getHours()+4)
         init_loading_count -= 1
         if (init_loading_count == 0) {
