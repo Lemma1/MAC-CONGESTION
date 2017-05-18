@@ -231,7 +231,7 @@ def get_latest_online_time(request):
 	all_loading = Philly_online_loading.objects.all().order_by('-time')
 	loading = all_loading[0]
 	# loading = Philly_online_loading.objects.latest('time')
-	other_loading = all_loading[1:]
+	other_loading = all_loading[1:3]
 	# print other_loading
 	for ol in other_loading:
 		print "delete ", ol.time
