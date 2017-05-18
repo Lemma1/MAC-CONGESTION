@@ -2,7 +2,7 @@ import logging
 
 class Router(object):
     def db_for_read(self, model, **hints):
-        logging.warning("read")
+        #logging.warning("read")
         database = getattr(model, "_DATABASE", None)
         if database:
             return database
@@ -10,7 +10,7 @@ class Router(object):
             return "default"
 
     def db_for_write(self, model, **hints):
-        logging.warning("write")
+        #logging.warning("write")
 
         # CHANGE!!!!
         # return 'psql'
