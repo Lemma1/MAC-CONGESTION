@@ -36,3 +36,9 @@ for row in xrange(nrow):
                       values = values[row, 1:].tolist())
   link_objects[row] = link_congestion_object
 Philly_congestion_array_online.objects.bulk_create(link_objects)
+
+all_loading = Philly_online_loading.objects.all().order_by('-time')
+other_loading = all_loading[1:]
+# print other_loading
+print "delete ", other_loading
+Philly_congestion_array_online.objects.filter(loading__in = other_loading).delete()

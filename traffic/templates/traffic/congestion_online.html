@@ -138,6 +138,27 @@
 
     var loaded_link_ids = [];
 
+    disable_map = function(map) {
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+        // document.getElementById('map').style.cursor='default';
+    }
+
+    enable_map = function(map) {
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        if (map.tap) map.tap.enable();
+        // document.getElementById('map').style.cursor='grab';
+    }
 
     function massageLinkLayer(data) {
         let d =  {
@@ -378,7 +399,7 @@
         },
         zoomDelta: 0.25,
     });
-
+    disable_map(map);
 
     var controller = new L.Control.TimeDimensionCustom({
         playerOptions: {
@@ -656,6 +677,8 @@
 
     sent_init_ajex = true
 
+
+
     var use_for_query_start_time = null;
     init_loading_count += 1
     var now = new Date();
@@ -799,6 +822,7 @@
                 }
             )
             $("#shade").remove()
+            enable_map(map);
             spinner.stop()
             linksLayersCache[hash] = linksLayer;    
         }
