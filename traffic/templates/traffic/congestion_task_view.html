@@ -141,7 +141,31 @@
     var threshold3 = 0.40
     var spinner = null;
 
-    start_spinner = function() {
+    disable_map = function(map) {
+        if (map == null) return;
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+        // document.getElementById('map').style.cursor='default';
+    }
+
+    enable_map = function(map) {
+        if (map == null) return;
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        if (map.tap) map.tap.enable();
+        // document.getElementById('map').style.cursor='grab';
+    }
+
+    start_spinner = function(map) {
         console.log("start spinner");
         var spinneropts = {
             lines: 13, // The number of lines to draw
@@ -165,14 +189,16 @@
         } else {
             spinner = new Spinner(spinneropts).spin(target);
         }
+        disable_map(map);
     }
 
-    stop_spinner = function() {
+    stop_spinner = function(map) {
         // console.log("remove spinner");
         if (spinner != null) {
             spinner.stop()
             $("#shade").remove()
         }
+        enable_map(map);
     }
 
     String.prototype.hashCode = function() {
@@ -308,7 +334,7 @@
             if (start_time == null) return false
             var index = (time.getTime() - start_time.getTime()) / unitTime / 1000
             if (link_values[index] != null) {
-                // stop_spinner();
+                // stop_spinner(map);
                 return true
 
             } else {
@@ -320,7 +346,7 @@
             console.log("_update");
             if (!this.isReady(map.timeDimension.getCurrentTime())) {
                 console.log("cannot update");
-                stop_spinner();
+                stop_spinner(map);
                 return;
             }
             // console.log(link_values);
@@ -343,7 +369,7 @@
                     // }
                 }
             })
-            stop_spinner();
+            stop_spinner(map);
             console.log("colors updated");
 
             // this._baseLayer.setStyle(function(feature) {
@@ -702,7 +728,7 @@
             linksLayerGroup.addLayer(linksLayer);
             linksLayersCache[hash] = linksLayer;
         }
-        stop_spinner();
+        stop_spinner(map);
         link_layers_to_load = [];
     }
 
@@ -812,7 +838,7 @@
         console.log("Length of the buffer: ", Object.keys(linksLayersCache).length)
         $.when.apply(null, linksRequests).done(reloadLinkLayer);
     };
-    start_spinner();
+    start_spinner(map);
     reloadLink();
     map.on('moveend', reloadLink);
 
@@ -849,7 +875,7 @@
                             id: data.tasks_info[taski][1]
                         }, function(event) {
                             clean_cache();
-                            start_spinner();
+                            start_spinner(map);
                             $.get("../get_parameter/", {
                                 taskid: event.data.id
                             }, function(data, textStatus) {

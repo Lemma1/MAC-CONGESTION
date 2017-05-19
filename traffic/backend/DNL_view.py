@@ -187,11 +187,10 @@ def congestion_online(request):
 
 # @permission_required(perm= 'traffic.congestion', raise_exception= True)
 def get_online_congestion(request):
-
-
-	start_time = request.POST['start_time']
+	start_time = Philly_online_loading.objects.all().order_by('-time')[0].time
+	# start_time = request.POST['start_time']
 	# if (start_time != None):
-	start_time = parser.parse(start_time).replace(tzinfo=None)
+	# start_time = parser.parse(start_time).replace(tzinfo=None)
 
 	print 'get_online_congestion:start_time', start_time
 
@@ -231,12 +230,11 @@ def get_latest_online_time(request):
 	all_loading = Philly_online_loading.objects.all().order_by('-time')
 	loading = all_loading[0]
 	# loading = Philly_online_loading.objects.latest('time')
-	other_loading = all_loading[1:]
-	# print other_loading
-	print "delete ", other_loading
-	Philly_congestion_array_online.objects.filter(loading__in = other_loading).delete()
+	# other_loading = all_loading[1:]
+	# # print other_loading
+	# print "delete ", other_loading
+	# Philly_congestion_array_online.objects.filter(loading__in = other_loading).delete()
 		# ol.delete()
-
 	print "get_latest_online_time:", loading.id
 	return HttpResponse(json.dumps(loading.time.isoformat()), content_type ="application/json")
 
