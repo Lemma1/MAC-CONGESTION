@@ -18,10 +18,12 @@
     <link rel="shortcut icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
   <link rel="traffic-icon" href="{% static 'traffic/images/transport.png' %}" type="icon">
     <link rel="icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
-<script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script>
+    <link rel="stylesheet" href="{% static 'traffic/leaflet_103/leaflet103.css' %}" />
+    <script src="{% static 'traffic/leaflet_103/leaflet103.js' %}"></script>
+<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script> -->
     <script src="{% static 'traffic/geojson-vt-dev.js' %}"></script>
-    <script src="https://unpkg.com/leaflet.vectorgrid@latest/dist/Leaflet.VectorGrid.bundled.js"></script>
+    <script src="{% static 'traffic/leaflet_103/Leaflet.VectorGrid.bundled.js' %}"></script>
     <!-- <script>
         (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
           (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
