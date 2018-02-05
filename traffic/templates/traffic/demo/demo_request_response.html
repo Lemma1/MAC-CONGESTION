@@ -1,0 +1,196 @@
+{% load staticfiles %}
+
+<!DOCTYPE HTML>
+
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>{% block title %}{% endblock %} </title>
+    <!-- <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons"> -->
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap-Sandstone.min.css'%}">
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/style_new.css'%}">
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap-select.css'%}">
+    <link rel="stylesheet" href="http://netdna.bootstrapcdn.com/bootstrap/3.0.0-rc2/css/bootstrap-glyphicons.css">
+    <script   src="https://code.jquery.com/jquery-2.2.4.min.js"   integrity="sha256-BbhdlvQf/xTY9gja0Dq3HiwQF8LaCRTXxZKRutelT44="   crossorigin="anonymous"></script>
+    <!-- <script src="https://code.jquery.com/ui/1.12.0/jquery-ui.min.js" integrity="sha256-eGE6blurk5sHj+rmkfsGYeKyZx3M4bG+ZlFyA7Kns7E=" crossorigin="anonymous"></script> -->
+    <script type="text/javascript" src={% static "traffic/bootstrap.js" %}></script>
+    <script type="text/javascript" src="{% static 'traffic/bootstrap-select.js'%}"></script>
+
+    
+
+
+    <script type="text/javascript" src="{% static 'traffic/spin.min.js' %}"></script>
+    <link rel="shortcut icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
+  <link rel="traffic-icon" href="{% static 'traffic/images/transport.png' %}" type="icon">
+    <link rel="icon" href="{% static 'traffic/images/favicon.ico' %}" type="image/x-icon">
+    <link rel="stylesheet" href="{% static 'traffic/leaflet_103/leaflet103.css' %}" />
+    <script src="{% static 'traffic/leaflet_103/leaflet103.js' %}"></script>
+<!-- <link rel="stylesheet" href="https://unpkg.com/leaflet@1.0.3/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.0.3/dist/leaflet.js"></script> -->
+    <script src="{% static 'traffic/geojson-vt-dev.js' %}"></script>
+    <script src="{% static 'traffic/leaflet_103/Leaflet.VectorGrid.bundled.js' %}"></script>
+    <!-- <script>
+        (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+          (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+          })(window,document,'script','//www.google-analytics.com/analytics.js','ga');
+
+          ga('create', 'UA-68685019-1', 'auto');
+          ga('send', 'pageview', location.pathname);
+
+
+        var sc_project=10654028;
+        var sc_invisible=1;
+        var sc_security="3d4bc21f";
+        var scJsHost = (("https:" == document.location.protocol) ?
+        "https://secure." : "http://www.");
+        document.write("<sc"+"ript type='text/javascript' src='" + scJsHost +
+        "statcounter.com/counter/counter.js'></"+"script>");
+    </script> -->
+    <link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+    {% block style %}{% endblock %}
+</head>
+
+<body>
+  <div class="mainpage" id = 'pagetospin'>
+            <nav class="navbar navbar-default navbar-static-top" role="navigation">
+            <div class="collapse navbar-collapse">
+                <ul class="nav navbar-nav navbar-right" style="margin-right: 20px;">
+                    {% if perms.traffic.perm_download %}
+                    <li id="nav-download"><a href="{% url 'traffic:download' %}"><span class="glyphicon glyphicon-download-alt"> </span> &nbsp;Download</a></li>
+                    {% endif %}
+                    {% if user.is_authenticated %}
+                    <li id="nav-logout"><a href="{% url 'traffic:logout' %}">Logout</a></li>
+                    {% endif %}
+                </ul>
+                <ul class="nav navbar-nav">
+                    <li id="nav-home"><a href="{% url 'traffic:demo_index' %}">Home</a></li>
+
+                    <li id="nav-Congestion-online"><a href="{% url 'traffic:demo_congestion_task_request' %}">Task Request</a></li>
+                    <li id="nav-Congestion-online"><a href="{% url 'traffic:demo_congestion_task_view' %}">Task View</a></li>
+                    <li id="nav-Congestion-online"><a href="{% url 'traffic:demo_congestion_task_list' %}">Task List</a></li>
+<!--                     {% if perms.traffic.perm_congestion %}
+                    <li id="nav-Congestion-online"><a href="{% url 'traffic:congestion_online' %}">On-line traffic management</a></li>
+                    {% endif %} -->
+
+<!--                     {% if perms.traffic.perm_twitter_map %}
+                    <li id="nav-twittermap"><a href="{% url 'traffic:twitter_map' %}">Twitter incident map</a></li>
+                    {% endif %} -->
+                </ul>
+            </div>
+        </nav>
+     <!--  <div id="lw" style="float: left;">
+          {% block content %}{% endblock %}
+      </div> -->
+
+      <!-- {% block map %}{% endblock %} -->
+
+      <!-- {% block others %}{% endblock %} -->
+
+
+
+      <div class="col justify-content-center">
+        <h2><p class="text-success" id = 'success_message'>Successful!</p></h2>
+        <table class="table table-inverse">
+          <thead>
+            <tr>
+              <th>Task ID</th>
+              <td>3245</td>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Task Name</th>
+              <td>Bridge_Closure</td>
+            </tr>
+            <tr>
+              <th scope="row">Start Time</th>
+              <td>8:00 AM</td>
+            </tr>
+            <tr>
+              <th scope="row">End Time</th>
+              <td>9:00 AM</td>
+            </tr>
+          </tbody>
+        </table>
+        <h3><p class="text-danger">Estimated simulation time: ~10 minutes.</p></h3>
+        <div class="progress">
+          <div class="progress-bar" role="progressbar" style="width: 75%;" aria-valuenow="75" aria-valuemin="0" aria-valuemax="100">75%</div>
+        </div>
+        <button type="button" onclick="window.location.href='../../traffic/demo_congestion_task_request/'"  class="btn btn-primary btn-lg">New Request</button>
+        <button type="button" onclick="window.location.href='../../traffic/demo_congestion_task_view/'" class="btn btn-primary btn-lg">View Results</button>
+        <button type="button" onclick="window.location.href='../../traffic/demo_congestion_task_list/'" class="btn btn-primary btn-lg">Request List</button>
+      </div>
+
+      <div style="width:100%;height:2px;margin:0 auto;padding:0;background-color:#ddd;overflow:hidden;"></div>
+      <footer>
+       <p class="footer_content" style="text-align:center;padding-top: 10px">
+    <a href="http://www.cmu.edu/index.shtml" target="_blank">Carnegie Mellon University</a> | <a href="http://heinz.cmu.edu/index.aspx" target="_blank">Heinz College</a> | <a href="http://traffic21.heinz.cmu.edu/" target="_blank">Traffic21</a> | <a href="http://mac.heinz.cmu.edu/resource.html" target="_blank">Founding Source</a> |<a href="http://mac.heinz.cmu.edu/index.html#contact" target="_blank">Contact Us</a> </p>
+      </footer>
+
+    </div>
+</body>
+
+
+<script>
+    var url = window.location;
+    // Will only work if string in href matches with location
+{#  $('ul.nav a[href="'+ url +'"]').parent().addClass('active');#}
+    // Will also work for relative and absolute hrefs
+    $('ul.nav a').filter(function() {
+        return this.href == url;
+    }).parent().addClass('active');
+    $('ul.nav a').filter(function() {
+        return this.href == url;
+    }).parent().parent().parent().addClass('active');
+
+
+    var spinner = null
+
+    start_spinner = function() {
+        console.log("df");
+        var spinneropts = {
+            lines: 13, // The number of lines to draw
+            length: 20, // The length of each line
+            width: 10, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 60, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+        };
+        var target = document.getElementById('pagetospin')
+        shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
+        $('#pagetospin').prepend(shade)
+        if (spinner) {
+            spinner.spin(target)
+        } else {
+            spinner = new Spinner(spinneropts).spin(target);
+        }
+    }
+
+    stop_spinner = function() {
+        spinner.stop()
+        $("#shade").remove();
+        $('#success_message').text('Successful!');
+    }
+
+    $('#success_message').text('Please wait......');
+    start_spinner();
+
+    $(function() {
+        console.log( "Remove spinner." );
+        setTimeout(stop_spinner, 2000);
+        // 
+    });
+
+</script>
+
+{% block script %}{% endblock %}
+
+</html>

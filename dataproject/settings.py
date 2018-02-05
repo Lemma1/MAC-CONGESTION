@@ -94,13 +94,15 @@ DATABASES = {
 
 
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        # 'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.contrib.gis.db.backends.mysql',
         'NAME': 'dataproject',
 	    'USER': 'root',
 	    'PASSWORD': 'dataproject',
         # 'HOST': '52.1.172.127',
         # 'HOST': 'LOCALHOST',
         'HOST': '128.2.84.231',
+        # 'HOST': '128.2.145.32',
         'PORT': '3306',
 
     },
@@ -109,8 +111,8 @@ DATABASES = {
        'NAME': 'dataprojectpsql',
        'USER': 'postgres',
        'PASSWORD': 'dataproject',
-       # 'HOST': '128.2.81.222',
-       'HOST': 'LOCALHOST',
+       'HOST': '128.2.81.222',
+       # 'HOST': 'LOCALHOST',
        'PORT': '5432',
    },
 }

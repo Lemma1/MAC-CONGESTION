@@ -44,6 +44,13 @@ urlpatterns = [
 
 
 
+    url(r'^demo_congestion_task_request/$', views.demo_congestion_task_request, name='demo_congestion_task_request'),
+    url(r'^demo_congestion_task_view/$', views.demo_congestion_task_view, name='demo_congestion_task_view'),
+    url(r'^demo_request_response/$', views.demo_request_response, name='demo_request_response'),
+    url(r'^demo_congestion_task_list/$', views.demo_congestion_task_list, name='demo_congestion_task_list'),
+    url(r'^demo_index/$', views.demo_index, name='demo_index'),
+
+
 
     # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++  Travel  +++++++++++++++++++++++++++++++++++++++++++++++++++++++
     url(r'^travel_time/$', views.travel_time, name='travel_time'),

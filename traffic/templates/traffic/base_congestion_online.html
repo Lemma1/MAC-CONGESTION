@@ -161,14 +161,14 @@
                         <a href="#" class="dropdown-toggle" data-toggle="dropdown">Off-line traffic prediction <b class="caret"></b></a>
                         <ul class="dropdown-menu">
                             <li><a href="{% url 'traffic:congestion_task_request' %}">Task Request</a></li>
-                <li><a href="{% url 'traffic:congestion_task_view' %}">Task View</a></li>
+                            <li><a href="{% url 'traffic:congestion_task_view' %}">Task View</a></li>
                         </ul>
                     </li>
                     {% endif %}
 
-                                        {% if perms.traffic.perm_congestion %}
-                                        <li id="nav-Congestion-online"><a href="{% url 'traffic:congestion_online' %}">On-line traffic management</a></li>
-                                        {% endif %}
+                    {% if perms.traffic.perm_congestion %}
+                    <li id="nav-Congestion-online"><a href="{% url 'traffic:congestion_online' %}">On-line traffic management</a></li>
+                    {% endif %}
 
 <!--                     {% if perms.traffic.perm_twitter_map %}
                     <li id="nav-twittermap"><a href="{% url 'traffic:twitter_map' %}">Twitter incident map</a></li>

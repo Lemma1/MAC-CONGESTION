@@ -2288,3 +2288,21 @@ def get_links(request):
 
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~ End Congestion ~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~Demo congestion ~~~~~~~~~~~~~~~~~~~~~~~~~
+def demo_congestion_task_request(request):
+    return render(request, 'traffic/demo/demo_congestion_task_request.html')
+
+def demo_congestion_task_view(request):
+    return render(request, 'traffic/demo/demo_congestion_task_view.html')
+
+def demo_request_response(request):
+    return render(request, 'traffic/demo/demo_request_response.html')
+
+def demo_congestion_task_list(request):
+    return render(request, 'traffic/demo/demo_congestion_task_list.html')
+
+def demo_index(request):
+    return render(request, 'traffic/demo/demo_index.html')

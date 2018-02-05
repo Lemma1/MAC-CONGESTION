@@ -1,0 +1,1145 @@
+{% extends "traffic/demo/demo_base_congestion_online.html" %}
+
+{% load staticfiles %} {% block title %} MDAP - Traffic Congestion Task Request {% endblock %} {% block style %}
+<link rel="stylesheet" href="{% static 'traffic/leaflet-search.css' %}">
+<link rel="stylesheet" type="text/css" href="{% static 'traffic/bootstrap_patch.css'%}">
+<link rel="stylesheet" type="text/css" href="{% static 'traffic/leaflet.timedimension.control.css'%}">
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/jquery.jqplot.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/plugins/jqplot.json2.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/plugins/jqplot.dateAxisRenderer.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/plugins/jqplot.canvasAxisTickRenderer.min.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/plugins/jqplot.canvasTextRenderer.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/7.1.0/css/bootstrap-slider.min.css" />
+<link rel="stylesheet" href="{% static 'traffic/jquery-ui/jquery-ui.css' %}">
+
+
+<link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jqPlot/1.0.8/jquery.jqplot.min.css" />
+<style>
+    #updatetextbox {
+        background: #ffffff;
+        border: 2px solid;
+        border-color: #3f51b5;
+        height: 50px;
+        overflow: auto;
+    }
+
+    #map_area {
+        position: relative;
+        overflow: hidden;
+    }
+
+    .table>tbody>tr>th {
+        padding: 2px;
+    }
+
+    .slider-track-low {
+        background: green;
+    }
+
+    .slider-selection {
+        background: yellow;
+    }
+
+    .slider-track-high {
+        background: red;
+    }
+</style>
+{% endblock %} {% block content %}
+
+<div id="user_input" class="well" style="height: 100%;overflow:auto;">
+    <div class="dropdown">
+        <button class="btn btn-primary dropdown-toggle" type="button" data-toggle="dropdown">Your Task Request</button>
+        <button class="btn btn-danger" id="deleteTask" disabled>Delete</button>
+        <ul class="dropdown-menu" id="taskdropdown">
+        </ul>
+    </div>
+    <div id="finish">
+    </div>
+
+    <div class="container" style="width: inherit">
+        <div class="row" id="title" style="margin-top:0px;text-align: center">
+            <h3>Link Parameter Updates</h3></div>
+        <div align="left" class="row" id="updatetextbox"></div>
+    </div>
+    <br>
+    <br>
+    <form>
+        <div class="form-group row">
+            <label for="startTime" class="col-sm-3 form-control-label">Task Name</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="taskName" readonly>
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="startTime" class="col-sm-3 form-control-label">Start Time</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="startTime" readonly>
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="endTime" class="col-sm-3 form-control-label">End Time</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="endTime" readonly>
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="vehicleScalar" class="col-sm-3 form-control-label">Vehicle Scalar</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="vehicleScalar" readonly>
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="kShortestPath" class="col-sm-3 form-control-label">Kshortest Path</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="kShortestPath" readonly>
+            </div>
+        </div>
+        <div class="form-group row">
+            <label for="dispersionFactor" class="col-sm-3 form-control-label">Dispersion Factor</label>
+            <div class="col-sm-9">
+                <input class="form-control" id="dispersionFactor" readonly>
+            </div>
+        </div>
+        <div>
+            <h4><center>Legend Threshold</center></h4>
+        </div>
+        <div id="sliderText" style="text-align: center"></div>
+        <div id="slider"></div>
+
+        <div class="form-group row">
+            <div class="col-sm-9" style="padding:0">
+                <button type="button" class="btn btn-primary btn-lg btn-block" id="changeThreshold">Change Threshold</button>
+            </div>
+            <div class="col-sm-3" style="padding:0">
+                <button type="button" class="btn btn-primary btn-lg btn-block btn-info" id="defaultThreshold">Default</button>
+            </div>
+        </div>
+        <input class="btn btn-primary btn-lg btn-block" id="basicresults" type="button" value="Basic Results">
+        <input class="btn btn-primary btn-lg btn-block btn-info" id="exportresults" type="button" value="Export Results">
+    </form>
+
+</div>
+
+{% endblock %} {% block map %}
+<div id="map_area">
+    <div id="map"></div>
+</div>
+<div id="wrapper" style="text-align: center">    
+    <div id="forplot" class="container centered" style="display: inline-block;"></div>
+</div>
+
+{% endblock %}
+
+
+{% block others %}
+      <table class="table table-hover centered" id="resulttable">
+        <thead>
+          <tr>
+            <th>Tot. Number of Trips</th>
+            <th>Tot. Travel Time</th>
+            <th>Tot. Delay</th>
+            <th>VMT</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr scope = "row">
+            <td>#</td>
+            <td>Hours</td>
+            <td>Hours</td>
+            <td>Miles</td>
+          </tr>
+          <tr scope = "row">
+            <td>677306</td>
+            <td>124624</td>
+            <td>21248</td>
+            <td>4550256</td>
+          </tr>
+        </tbody>
+        <thead>
+          <tr>
+            <th>Avg. Travel Time</th>
+            <th>Avg. Delay</th>
+            <th>Avg. Travel Distance</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr scope = "row">
+            <td>Minutes</td>
+            <td>Minutes</td>
+            <td>Miles</td>
+          </tr>
+          <tr scope = "row">
+            <td>11.04</td>
+            <td>6.72</td>
+            <td>1.88</td>
+          </tr>
+        </tbody>
+        <thead>
+          <tr>
+            <th>Fuel Consumption</th>
+            <th>CO2</th>
+            <th>HC</th>
+            <th>CO</th>
+            <th>NOX</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr scope = "row">
+            <td>Gallon</td>
+            <td>Ton</td>
+            <td>Ton</td>
+            <td>Ton</td>
+            <td>Ton</td>
+          </tr>
+          <tr scope = "row">
+            <td>154109</td>
+            <td>1367.72</td>
+            <td>3.49</td>
+            <td>5.35</td>
+            <td>4.96</td>
+          </tr>
+        </tbody>
+      </table>
+
+{% endblock %}
+
+{% block script %}
+<script type="text/javascript" src="{% static 'traffic/leaflet-search.min.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/leaflet.timedimension.src.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/iso8601.js' %}"></script>
+<script type="text/javascript" src="{% static 'traffic/spin.min.js' %}"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-slider/7.1.0/bootstrap-slider.min.js"></script>
+<script type="text/javascript" src="{% static 'traffic/jquery-ui/jquery-ui.js' %}"></script>
+<script>
+
+    $('#resulttable').hide();
+
+    var stagingZoomLevels = [15, 13, 0];
+    var numlanesWithZoomPhilly = [1, 2, 3]
+    var loaded_link_ids = [];
+    var threshold1 = 0.10
+    var threshold2 = 0.25
+    var threshold3 = 0.40
+    var spinner = null;
+
+    disable_map = function(map) {
+        if (map == null) return;
+        map.dragging.disable();
+        map.touchZoom.disable();
+        map.doubleClickZoom.disable();
+        map.scrollWheelZoom.disable();
+        map.boxZoom.disable();
+        map.keyboard.disable();
+        if (map.tap) map.tap.disable();
+        // document.getElementById('map').style.cursor='default';
+    }
+
+    enable_map = function(map) {
+        if (map == null) return;
+        map.dragging.enable();
+        map.touchZoom.enable();
+        map.doubleClickZoom.enable();
+        map.scrollWheelZoom.enable();
+        map.boxZoom.enable();
+        map.keyboard.enable();
+        if (map.tap) map.tap.enable();
+        // document.getElementById('map').style.cursor='grab';
+    }
+
+    start_spinner = function(map) {
+        console.log("start spinner");
+        var spinneropts = {
+            lines: 13, // The number of lines to draw
+            length: 20, // The length of each line
+            width: 10, // The line thickness
+            radius: 30, // The radius of the inner circle
+            corners: 1, // Corner roundness (0..1)
+            direction: 1, // 1: clockwise, -1: counterclockwise
+            color: '#000', // #rgb or #rrggbb or array of colors
+            speed: 1, // Rounds per second
+            trail: 60, // Afterglow percentage
+            shadow: false, // Whether to render a shadow
+            hwaccel: false, // Whether to use hardware acceleration
+            zIndex: 2e9, // The z-index (defaults to 2000000000)
+        };
+        var target = document.getElementById('map')
+        shade = $("<div/>", {id:"shade", style: "background-color: black; opacity: 0.3; z-index: 100; width: 100%; height: 100%; position: absolute"})
+        $('#map').prepend(shade)
+        if (spinner) {
+            spinner.spin(target)
+        } else {
+            spinner = new Spinner(spinneropts).spin(target);
+        }
+        disable_map(map);
+    }
+
+    stop_spinner = function(map) {
+        // console.log("remove spinner");
+        if (spinner != null) {
+            spinner.stop()
+            $("#shade").remove()
+        }
+        enable_map(map);
+    }
+
+    String.prototype.hashCode = function() {
+        var hash = 0;
+        if (this.length == 0) return hash;
+        for (i = 0; i < this.length; i++) {
+            char = this.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return hash;
+    }
+
+    function getZoomLevel(zoom) {
+        for (var i = 0; i < stagingZoomLevels.length; i++) {
+            if (zoom >= stagingZoomLevels[i]) {
+                return stagingZoomLevels[i]
+            }
+        }
+    }
+
+    function getBlockSize(zoom) {
+        var zoomLevel = getZoomLevel(zoom)
+        // let xzoom = .005 * Math.pow(2, 17-zoom);
+        // let yzoom = .003 * Math.pow(2, 17-zoom);
+        // let xzoom = .005 * Math.pow(2, 19-zoom);
+        // let yzoom = .003 * Math.pow(2, 19-zoom);
+        // return [xzoom, yzoom];
+        if (zoomLevel == stagingZoomLevels[0]) return [0.017 * 2, 0.011 * 2]
+        if (zoomLevel == stagingZoomLevels[1]) return [0.017 * 4, 0.011 * 4]
+        if (zoomLevel == stagingZoomLevels[2]) return [0.017 * 12*2, 0.011 * 12*2]
+    }
+
+    function hashLatLng(a, b, zoom) {
+
+        str = "" + Math.round(a * 1000) / 1000 + "|" + Math.round(b * 1000) / 1000 + "|" + getZoomLevel(zoom)
+        return str
+    }
+
+
+    function getColor(value) {
+        //value from 0 to 1
+        // var hue = ((1 - value) * 120).toString(10);
+        // return ["hsl(", hue, ",100%,50%)"].join("");
+        // console.log(value)
+        if (value < threshold1) {
+            return "green"
+        } else if (value < threshold2) {
+            return "yellow"
+        } else if (value < threshold3) {
+            return "orange"
+        } else if (value < 1){
+            return "red"
+        }
+        else {
+            return "green"
+        }
+    }
+
+    var taskID = null;
+    var parameter;
+    var link_values = {}
+    var interval_request_count = Array(1000)
+    for (var i = 0; i < interval_request_count.length; i++)
+        interval_request_count[i] = 0
+    clean_cache = function() {
+        link_values = {}
+        for (var i = 0; i < 200; i++)
+            interval_request_count[i] = 0
+    }
+    var start_time = null;
+    var selecting_task_warned = false
+
+    var LinkTimeLayer = L.TimeDimension.Layer.extend({
+        initialize: function(layer, options) {
+            L.TimeDimension.Layer.prototype.initialize.call(this, layer, options);
+        },
+
+        _onNewTimeLoading: function(ev) {
+            if (taskID == null && !selecting_task_warned) {
+                alert("Please select a task first.")
+                selecting_task_warned = true
+                return
+            }
+            if (start_time == null) {
+                return
+            }
+            var index = (ev.time.getTime() - start_time.getTime()) / unitTime / 1000
+
+            if (map.timeDimension.getCurrentTimeIndex() == 0) {
+                clean_cache()
+            }
+            if (link_values[index] != null) {
+                return
+            } else if (interval_request_count[index] >= 1) {
+                return
+            } {
+            }
+
+
+
+            // var link_ids = []
+            // linksLayerGroup.eachLayer(function(layer) {
+            //     for (var i in layer.getLayers())
+            //         link_ids.push(layer.getLayers()[i].feature.properties.no)
+            // })
+            let link_ids = loaded_link_ids;
+            // console.log("_onNewTimeLoading, links length", link_ids.length)
+            if (link_ids.length == 0) return
+
+            length_per_request = 5
+            for (var i = 0; i < length_per_request; i++) {
+                interval_request_count[index + i]++
+            }
+            var curTime = new Date(start_time)
+            console.log("update send link id: ", link_ids.length)
+            $.post("../get_congestion/", {
+                        taskid: taskID,
+                        time: ev.time.toString().split('(')[0],
+                        link_id: link_ids,
+                        length: length_per_request,
+                        'csrfmiddlewaretoken': '{{ csrf_token }}',
+                    },
+                    function(data, textStatus) {
+                        for (var offset = 0; offset < data.length; offset++) {
+                            key = index + offset
+                            link_values[key] = data[offset]
+                        }
+                        console.log("finished get link value")
+                    }
+                )
+        },
+
+        isReady: function(time) {
+            // console.log("isReady");
+            // console.log(link_values)
+            if (start_time == null) return false
+            var index = (time.getTime() - start_time.getTime()) / unitTime / 1000
+            if (link_values[index] != null) {
+                // stop_spinner(map);
+                return true
+
+            } else {
+                return false
+            }
+        },
+
+        _update: function() {
+            console.log("_update");
+            if (!this.isReady(map.timeDimension.getCurrentTime())) {
+                console.log("cannot update");
+                stop_spinner(map);
+                return;
+            }
+            // console.log(link_values);
+            linksLayerGroup.eachLayer(function(layer) {
+                for (let id of layer.link_ids) {
+                    var index = map.timeDimension.getCurrentTimeIndex()
+                    var values = link_values[index]
+                    layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    // if (index == 0) {
+                    //     layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    // }
+                    // else {
+                    //     var old_values = link_values[index - 1]
+                    //     if ((old_values != null) && (id in old_values) && (getColor(values[id]) == getColor(old_values[id]))) {
+                    //         continue;
+                    //     }
+                    //     else {
+                    //         layer.setFeatureStyle(id, { color: getColor(values[id]) });
+                    //     }
+                    // }
+                }
+            })
+            stop_spinner(map);
+            console.log("colors updated");
+
+            // this._baseLayer.setStyle(function(feature) {
+            //     return {color: getColor(Math.random())}
+            // })
+        }
+    });
+
+    L.Control.TimeDimensionCustom = L.Control.TimeDimension.extend({
+        _superSliderTimeValueChanged: L.Control.TimeDimension.prototype._sliderTimeValueChanged,
+        _sliderTimeValueChanged: function(value) {
+            this._superSliderTimeValueChanged(value);
+            clean_cache()
+            linksLayerGroup.eachLayer(function(layer) {
+                layer.setFeatureStyle(function(feature) {
+                    return {
+                        color: "#d3d3d3"
+                    }
+                })
+            })
+        }
+    })
+
+
+    shift_features_for_two_ways = function(data, zoomLevel) {
+        coordinate_shift = 1 / 5e4 * (19 - zoomLevel)
+        for (var i in data.features) {
+            feature = data.features[i]
+            if (feature.properties.direction == 1) {
+                // Forward direction
+                shift_sign = 1
+            } else if (feature.properties.direction == -1) {
+                // Backward
+                shift_sign = -1
+            } else {
+                // Single lane
+                shift_sign = 0
+            }
+            link_coord_length = feature.geometry.coordinates.length
+            if (Math.abs(feature.geometry.coordinates[0][0] - feature.geometry.coordinates[link_coord_length - 1][0]) >
+                Math.abs(feature.geometry.coordinates[0][1] - feature.geometry.coordinates[link_coord_length - 1][1])) {
+                // Horizontal Link, shift in the vertical direction
+                for (var i in feature.geometry.coordinates) {
+                    feature.geometry.coordinates[i][1] += shift_sign * coordinate_shift
+                }
+            } else {
+                // Vertical Link, shift in horizontal direction
+                for (var i in feature.geometry.coordinates) {
+                    feature.geometry.coordinates[i][0] += shift_sign * coordinate_shift
+                }
+            }
+        }
+        return data
+    }
+
+
+    var lowerThreshold = 0.33
+    var upperThreshold = 0.66
+
+
+    // add an OpenStreetMap tile layer
+    var streetsL = L.tileLayer('http://{s}.tile.osm.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a> contributors'
+    });
+    var grayscale = L.tileLayer('http://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, &copy; <a href="http://cartodb.com/attributions">CartoDB</a>'
+    });
+
+    var map = L.map('map', {
+        center: [39.9526, -75.1652],
+        zoom: 16,
+        layers: [grayscale],
+        timeDimension: true,
+        timeDimensionOptions: {
+            loadingTimeout: 2000
+        },
+        // timeDimensionControl: true
+    });
+
+    function getBounds() {
+        let bounds = map.getBounds();
+        let south = Math.max(bounds.getSouth(), 39.914241);
+        let north = Math.min(bounds.getNorth(), 40.203163);
+        let west = Math.max(bounds.getWest(), -75.521439);
+        let east = Math.min(bounds.getEast(), -74.803599);
+        return L.latLngBounds(L.latLng(south, west), L.latLng(north, east));
+    }
+
+    var controller = new L.Control.TimeDimensionCustom({
+        playerOptions: {
+            loop: true,
+            buffer: 3
+        },
+        maxSpeed: 3,
+        minSpeed: 1
+    })
+
+    var playStatus = false;
+    map.addControl(controller);
+    controller._player.on("play", function() {
+        playStatus = true
+    })
+    controller._player.on("stop", function() {
+        playStatus = false
+    })
+
+    var legend = L.control({position: 'bottomright'});
+    legend.onAdd = function (map) {
+        var div = L.DomUtil.create('div', 'info legend')
+        div.innerHTML +=
+            '<i style="background:' + "green" + '"></i> ' +
+            0 +  '&ndash;' + threshold1 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "yellow" + '"></i> ' +
+            threshold1 +  '&ndash;' + threshold2 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "orange" + '"></i> ' +
+            threshold2 +  '&ndash;' + threshold3 + '<br>';
+        div.innerHTML +=
+            '<i style="background:' + "red" + '"></i> ' +
+            threshold3 +  '&ndash;' + 1 + '<br>';
+        return div;
+    };
+    legend.addTo(map);
+    updateLegend = function() {
+
+        legend._container.innerHTML = ""
+        legend._container.innerHTML +=
+            '<i style="background:' + "green" + '"></i> ' +
+            0 +  '&ndash;' + threshold1 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "yellow" + '"></i> ' +
+            threshold1 +  '&ndash;' + threshold2 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "orange" + '"></i> ' +
+            threshold2 +  '&ndash;' + threshold3 + '<br>';
+        legend._container.innerHTML +=
+            '<i style="background:' + "red" + '"></i> ' +
+            threshold3 +  '&ndash;' + 1 + '<br>';
+    }
+
+
+    var baseMaps = {
+        "Grayscale": grayscale,
+        "Streets": streetsL
+    };
+    var substitute_word = {
+        "no": "Road Segment ID",
+        "v0prt": "Free Flow Speed",
+        "tsysset": "Vehicle Types",
+        "numlanes": "Number of Lanes",
+        "county_10": "County",
+        "hwy_num": "Highway name",
+        "cap_1h": "Lane Capacity",
+        "length": "Road Length",
+        "direction": "direction"
+    }
+
+    var control = L.control.layers(baseMaps, null, {
+        collapsed: false
+    }).addTo(map);
+    var linksTimeLayer;
+
+    function onEachFeature(event) {
+        if (taskID == null) return;
+        console.log(event.layer)
+        var feature = event.layer
+        popup = "";
+        popup += "Full Name: " + feature.properties.full_name + "\n";
+        popup += "Type: " + feature.properties.st_type + "\n";
+        popup += "Speed: " + feature.properties.speed + "\n";
+        var container = $('<div />');
+        container.html("<h3>Link Info Update</h3><br>");
+        var table = $("<table/>", {"class": "table table-striped"})
+        container.append(table)
+        for (key in feature.properties) {
+            table.append($("<tr>").html("<th>" + substitute_word[key] + "</th>" + "<th>" + feature.properties[key] + "</th>"))
+        }
+        $button = $("<button>").html("Open Visualization")
+        $button.on('click', function(e) {
+            plotHistory(feature.properties.no)
+            map.closePopup();
+        })
+        container.append($button)
+        L.popup()
+            .setContent(container[0])
+            .setLatLng(event.latlng)
+            .openOn(map);
+        L.DomEvent.stop(event);
+        // e.layer.bindPopup(container[0], {"keepInView": true});
+    }
+
+
+    map.on('popupopen', function(e) {
+      $("#chart").remove()
+    });
+
+    var linksLayersCache = {}
+    var linksLayerGroup = L.layerGroup()
+    linksLayerGroup.addTo(map);
+    var linksTimeLayer = new LinkTimeLayer(linksLayerGroup);
+    linksTimeLayer.addTo(map);
+    var newestRequestTime = new Date();
+    var linkInfoUpdates = [];
+
+    var speed = 65;
+
+    var speedWithZoom = [
+        [0, 1, 5, 15, 20, 25, 35, 45, 55, 65],
+        [35, 45, 55, 65],
+        [45, 55, 65]
+    ];
+    var speedWithZoomPhilly = [-1,
+        30,
+        50
+    ]
+    var excludeTypeWithZoom = [
+        [],
+        [],
+        []
+    ];
+
+
+
+    displayLinkInfoUpdates = function() {
+        var container = $('<ul class = "list-group"></ul>');
+
+        for (var i = 0; i < linkInfoUpdates.length; i++) {
+            update = linkInfoUpdates[i];
+
+            if (update.disabled)
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.id + ", closed");
+            else {
+                container.append("<li class = 'list-group-item'><span class='glyphicon glyphicon-remove-circle' onclick = 'rem(this)'></span>id: " + update.id + ", speed: " + update.speed + ", capacity: " + update.capacity);
+            }
+            rem = function(me) {
+                $(me).parent().remove();
+                text = $(me).parent().html();
+                id = parseInt(text.substring(text.indexOf("id:") + 4, text.indexOf(",")));
+                for (var i = 0; i < linkInfoUpdates.length; i++) {
+                    if (linkInfoUpdates[i].id == id) {
+                        linkInfoUpdates.splice(i, 1);
+                        break;
+                    }
+                }
+                return false;
+            };
+        }
+        $('#updatetextbox').html(container);
+    };
+
+
+    function massageLinkLayer(data) {
+        let d =  {
+            "crs": {
+                "type": "name",
+                "properties": {
+                    "name": "EPSG:4326"
+                }
+            },
+            "type": "FeatureCollection",
+            "features": []
+        }
+        for (let i = 0; i < data.length; i++) {
+            d.features[i] = JSON.parse(data[i].fields.geom_str)[0];
+        }
+        return d;
+    }
+
+    var link_layers_to_load = [];
+    var linksRequests = [];
+    var linkColors = {};
+
+    reloadLinkLayer = function () {
+        console.log("reloadLinkLayer reloading", link_layers_to_load.length, "blocks");
+        for (let i = 0; i < link_layers_to_load.length; i++) {
+            let tuple = link_layers_to_load[i];
+            let displayData = tuple[0];
+            let hash = tuple[1];
+            console.log("loading link layer", hash, displayData.features.length);
+            let linksLayer = L.vectorGrid.slicer(displayData, {
+                                    vectorTileLayerStyles: {
+                                        sliced: {
+                                            color: "#595959",
+                                            weight: '3',
+                                            opacity: '0.7'
+                                        },
+                                    },
+                                    maxZoom: 20,
+                                    interactive: true,
+                                    getFeatureId (f) { return f.properties.no; }
+                                });
+
+            // linksLayer.on("click", () => console.log("link clicked"));
+            linksLayer.on("click", onEachFeature);
+            console.log("finish loading link layer", hash);
+
+            let link_ids = [];
+            for (let link of displayData.features) {
+                loaded_link_ids.push(link.properties.no);
+                link_ids.push(link.properties.no);
+            }
+
+            linksLayer.link_ids = link_ids;
+
+            if (start_time != null){
+                // if (link_ids.length == 0) {
+                //     console.log("No link to color");
+                //     continue
+                // }
+
+                // var index = map.timeDimension.getCurrentTimeIndex()
+                // console.log("first send link id: ", link_ids.length)
+                // $.post("../get_congestion/", {
+                //         taskid: taskID,
+                //         time: start_time.toString().split('(')[0],
+                //         index: index,
+                //         link_id: link_ids,
+                //         length: 1,
+                //         'csrfmiddlewaretoken': '{{ csrf_token }}',
+                //     },
+                //     function(data, textStatus) {
+                //         data = data[0]
+                //         clean_cache()
+                //         console.log("setting color");  
+                //         // console.log(data);
+                //         for (let id of link_ids) {
+                //             linkColors[data[id]] = getColor(data[id]);
+                //             linksLayer.setFeatureStyle(id, { color: linkColors[data[id]] });
+                //         }
+                //         console.log("colors loaded");
+                //     }
+                // )
+                if (map.timeDimension.getCurrentTime() != null) {
+                    // console.log("start color the links");
+                    if (!linksTimeLayer.isReady(map.timeDimension.getCurrentTime())){
+                        // console.log('not ready')
+                        let e = {};
+                        e.time = map.timeDimension.getCurrentTime();
+                        linksTimeLayer._onNewTimeLoading(e);
+                        while(linksTimeLayer.isReady(map.timeDimension.getCurrentTime())){
+                            // console.log("waiting");
+                            linksTimeLayer._update();
+                        }
+                    }
+                    else {
+                        // console.log('ready')
+                        linksTimeLayer._update();
+                    }
+                }
+                
+            }
+            else {
+                for (let id of link_ids) {
+                    // linksLayer.setFeatureStyle(id, { color: "#111111" });
+                }                
+            }
+            linksLayerGroup.addLayer(linksLayer);
+            linksLayersCache[hash] = linksLayer;
+        }
+        stop_spinner(map);
+        link_layers_to_load = [];
+    }
+
+    // This function removes and adds blocks of links
+    reloadLink = function() {
+        console.log('Current zoom level:', map.getZoom());
+        var bounds = getBounds();
+
+        // Cancel all our old requests
+        for (let l of linksRequests) {
+            l.abort();
+        }
+        linksRequests = [];
+
+        // for (let i = 0; i < stagingZoomLevels.length; i++) {
+        //     if (map.getZoom() >= stagingZoomLevels[i]) {
+        //         var numlanes = numlanesWithZoomPhilly[i];
+        //         break;
+        //     }
+        // }
+
+        var zoom = map.getZoom()
+        var blockWidth = getBlockSize(zoom)[0]
+        var blockHeight = getBlockSize(zoom)[1]
+        for (var key in linksLayersCache) {
+            // console.log('Current key is:', key);
+            var lat = key.split("|")[0]
+            var lng = key.split("|")[1]
+            zoomLevel = key.split("|")[2]
+            if ((lat < bounds._southWest.lat - blockHeight || lat > bounds._northEast.lat + blockHeight ||
+                    lng < bounds._southWest.lng - blockWidth || lng > bounds._northEast.lng + blockWidth 
+                    || zoomLevel > zoom) && linksLayerGroup.hasLayer(linksLayersCache[key])) {
+                console.log('removing link layer: ', key);
+                linksLayerGroup.removeLayer(linksLayersCache[key])
+            }
+        }
+
+        for (let i = 0; i < stagingZoomLevels.length; i++){
+          if (zoom >= stagingZoomLevels[i]){
+            var c_zoom = stagingZoomLevels[i]
+            console.log('processing zoom level: ', c_zoom);
+            blockWidth = getBlockSize(c_zoom)[0]
+            blockHeight = getBlockSize(c_zoom)[1]
+            // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
+            for (var lng = Math.floor(bounds._southWest.lng / blockWidth) * blockWidth; lng <= Math.ceil(bounds._northEast.lng / blockWidth) * blockWidth; lng = lng + blockWidth) {
+              for (var lat = Math.floor(bounds._southWest.lat / blockHeight) * blockHeight; lat <= Math.ceil(bounds._northEast.lat / blockHeight) * blockHeight; lat = lat + blockHeight) {       
+                // console.log('czoom processing block width and height: ', c_zoom, blockWidth, blockHeight);
+                var NE_lat = lat + blockHeight / 2
+                var NE_lng = lng + blockWidth / 2
+                var SW_lat = lat - blockHeight / 2
+                var SW_lng = lng - blockWidth / 2
+                if (linksLayersCache[hashLatLng(lat, lng, c_zoom)]) {
+                    // Layer is in cache
+                    console.log('Layer is in cache: ', hashLatLng(lat, lng, c_zoom));
+                    var cachedLayer = linksLayersCache[hashLatLng(lat, lng, c_zoom)]
+                    if (!linksLayerGroup.hasLayer(cachedLayer)) {
+                        //This is to prevent loading layers with previous color
+                        if (playStatus) {
+                            // cachedLayer.eachLayer(function(layer) {
+                            //     layer.setStyle(function(feature) {
+                            //         return {
+                            //             color: "#d3d3d3"
+                            //         }
+                            //     })
+                            // })
+                            cachedLayer.setFeatureStyle(function (feature) {
+                                return {
+                                    color : "#d3d3d3"
+                                }
+                            })
+                        }
+                        else {
+
+                        }
+                        linksLayerGroup.addLayer(cachedLayer)
+                    }
+                } 
+                else {
+                  console.log('adding link layer: ', hashLatLng(lat, lng, c_zoom));
+                  // Layer is not in cache
+                  (function(lat, lng, zoom) {
+                    // Save the link request so we can cancel later
+                    let req = $.get("../get_links/", {
+                            numlanes: numlanesWithZoomPhilly[i],
+                            NE_lat: NE_lat,
+                            NE_lng: NE_lng,
+                            SW_lat: SW_lat,
+                            SW_lng: SW_lng
+                        },
+                        function(data, textStatus) {
+                            c_zoom = stagingZoomLevels[i]
+                            data = massageLinkLayer(data);
+                            let displayData = shift_features_for_two_ways(data, map.getZoom())
+                            // if (linksLayersCache[hashLatLng(lat, lng, zoom)]) continue
+                            
+                            link_layers_to_load.push([displayData, hashLatLng(lat, lng, c_zoom)])
+                            console.log("links loaded", displayData.features.length);
+                        }, 'json');
+                    linksRequests.push(req);
+                  })(lat, lng, zoom)
+                }
+              }
+            }
+          }
+        }
+
+        console.log("Length of the buffer: ", Object.keys(linksLayersCache).length)
+        $.when.apply(null, linksRequests).done(reloadLinkLayer);
+    };
+    start_spinner(map);
+    reloadLink();
+    map.on('moveend', reloadLink);
+
+
+    displayLinkInfoUpdates = function(linkInfoUpdates) {
+        var container = $('<ul class = "list-group"></ul>');
+
+        for (var i = 0; i < linkInfoUpdates.length; i++) {
+            update = linkInfoUpdates[i];
+
+            if (update.disabled)
+                container.append("<li class = 'list-group-item'>id: " + update.id + ", closed");
+            else {
+                container.append("<li class = 'list-group-item'>id: " + update.id + ", speed: " + update.speed + ", capacity: " + update.capacity);
+            }
+        }
+        $('#updatetextbox').html(container);
+    };
+
+    get_tasks = function() {
+        $("#finish").html("")
+        $("#taskdropdown").empty()
+        $.get("../get_tasks/", {},
+            function(data, textStatus) {
+
+                for (var taski = 0; taski < data.tasks_info.length; taski++) {
+                    var $a = $("<a>", {
+                        id: data.tasks_info[taski][1],
+                        text: data.tasks_info[taski][0],
+                        href: "#"
+                    })
+                    bind_clink = function(taski0) {
+                        var $li = $("<li>").bind('click', {
+                            id: data.tasks_info[taski][1]
+                        }, function(event) {
+                            clean_cache();
+                            start_spinner(map);
+                            $.get("../get_parameter/", {
+                                taskid: event.data.id
+                            }, function(data, textStatus) {
+                                $("#deleteTask").prop( "disabled", false );
+                                parameter = data
+                                if (parameter['finish'] == 0) {
+                                    $("#finish").html("This task has not finished.")
+                                } else {
+                                    $("#finish").html("")
+                                }
+                                // displayLinkInfoUpdates(JSON.parse(data['linkInfoUpdates']))
+                                $("#startTime").val(data['startTime'])
+                                $("#endTime").val(data['endTime'])
+                                $("#taskName").val(data['taskName'])
+                                $("#vehicleScalar").val(data['vehicleScalar'])
+                                $("#kShortestPath").val(data['kShortestPath'])
+                                $("#dispersionFactor").val(data['dispersionFactor'])
+                                start_time = new Date(data['startTime'])
+                                unitTime = parseInt(data['resolution'])
+                                var times = []
+                                for (var j = 0; j <= parseInt(data['totalInterval']); j++) {
+                                    t = new Date(data['startTime'])
+                                    t.setSeconds(t.getSeconds() + j * parseInt(data['resolution']))
+                                    times.push(t)
+                                }
+                                linksTimeLayer._timeDimension.setAvailableTimes(times, "replace")
+                                linksTimeLayer._timeDimension.setCurrentTime(times[0])
+                                console.log(map.timeDimension.getCurrentTime());
+                                // linksLayersCache = {};
+                                // reloadLink(); 
+                                // linksTimeLayer._update();
+                            })
+                            taskID = data.tasks_info[taski0][1]
+
+                        })
+                        $li.append($a)
+                        $("#taskdropdown").append($li)
+                    }
+                    bind_clink(taski)
+                }
+            }
+        )
+    }
+    get_tasks()
+
+
+
+    var renderPlot = function(data) {
+        console.log("go to renderPlot", data)
+        $("#chart").remove()
+        chart = $("<div/>", {
+            id: "chart",
+            // style: "position: absolute; top: 0; left: 0; width: 70%; height: 30%; "
+            style: "position: float;",
+            class: "container centered",
+        })
+        $("#forplot").append(chart)
+        // $("#forplot").on("click", function(e) {
+        //     $("#chart").remove()
+        // })
+
+        $.jqplot.config.enablePlugins = true;
+
+        // for (let i=0; i<data.length; i++){
+        //     data[i][0] = data[i][0].split(' ')[1]
+        //     data[i][0] = data[i][0].split('+')[0]
+        // }
+
+        var plot3 = $.jqplot('chart', [data], {
+            title: 'Value over time',
+            axes: {
+                xaxis: {
+                    renderer: $.jqplot.DateAxisRenderer,
+                    rendererOptions: {
+                        tickRenderer: $.jqplot.CanvasAxisTickRenderer
+                    },
+                    tickInterval: '300 second',
+                    tickOptions: {
+                        formatString: '%Y-%m-%d %H:%M:%S%G',
+                        angle: -40
+                    }
+                }
+            },
+        });
+    }
+
+    var plotHistory = function(link_id) {
+        console.log("go to plotHistory")
+        $.get("../get_congestion_for_link/", {
+                link_id: link_id,
+                taskid: taskID
+            },
+            function(data, textStatus) {
+                renderPlot(data)
+            }
+        )
+    }
+
+    $("#deleteTask").click(function(){
+        if (taskID) {
+            $.get("../delete_task/", {
+                taskID: taskID
+            },
+            function(data) {
+                $("#deleteTask").prop( "disabled", true );
+                taskID = null;
+                get_tasks();
+                alert(data);
+            })
+        }
+    })
+
+    $('#basicresults').click(function(){
+        if (taskID){
+            if ($("#resulttable").is(":visible")) {
+                $("#resulttable").hide();
+            }
+            else {
+                $("#resulttable").show();
+            }
+        }
+    })
+
+    $('#exportresults').click(function() {
+        alert('This function be implemented soon!')
+    })
+
+
+    var handlers = [30, 50, 70];
+    var colors = ["green", "yellow", "orange", "red"];
+    updateColors(handlers);
+
+    $("#slider").slider({
+        min: 0,
+        max: 100,
+        values: handlers,
+        slide: function (evt, ui) {
+            updateColors(ui.values);
+            var str = ui.values[0] + "&nbsp;&nbsp;" + ui.values[1] + "&nbsp;&nbsp;" + ui.values[2]
+            $("#sliderText").html(str)
+        }
+    });
+
+    $("#slider").css("margin-bottom", 10)
+    var str = handlers[0] + "&nbsp;&nbsp;" + handlers[1] + "&nbsp;&nbsp;" + handlers[2]
+    $("#sliderText").html(str)
+
+    function updateColors(values) {
+        var colorstops = colors[0] + ", "; // start left with the first color
+            for (var i=0; i< values.length; i++) {
+                colorstops += colors[i] + " " + values[i] + "%,";
+                colorstops += colors[i+1] + " " + values[i] + "%,";
+            }
+            // end with the last color to the right
+            colorstops += colors[colors.length-1];
+
+            /* Safari 5.1, Chrome 10+ */
+            var css = '-webkit-linear-gradient(left,' + colorstops + ')';
+            $('#slider').css('background-image', css);
+    }
+
+
+    $("#changeThreshold").click(function(){
+        threshold1 = $('#slider').slider("option", "values")[0] / 100
+        threshold2 = $('#slider').slider("option", "values")[1] / 100
+        threshold3 = $('#slider').slider("option", "values")[2] / 100
+        updateLegend()
+    })
+
+    $("#defaultThreshold").click(function() {
+        threshold1 = 0.3
+        threshold2 = 0.5
+        threshold3 = 0.7
+        updateLegend()
+        $("#slider").slider('values',[30,50,70]);
+        updateColors(handlers)
+    })
+
+</script>
+{% endblock %}
