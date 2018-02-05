@@ -50,7 +50,7 @@ SECRET_KEY = '*d7jnjdq6ng4w_u0$ilw5lyd-s&b9y@kb%!cg=jbx1f7hw^r3q'
 DEBUG = True
 
 
-ALLOWED_HOSTS = ['mac.heinz.cmu.edu']
+ALLOWED_HOSTS = ['mac.heinz.cmu.edu', 'bruno.heinz.cmu.edu', 'localhost']
 
 ADMINS = (('hzn', 'benhzn07@gmail.com'))
 
@@ -68,11 +68,11 @@ INSTALLED_APPS = (
     # 'kombu.transport.django',
     # 'djcelery',
     'django.contrib.gis',
-    # 'debug_toolbar',
+    'debug_toolbar',
 )
 
 MIDDLEWARE_CLASSES = (
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
+    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -111,8 +111,8 @@ DATABASES = {
        'NAME': 'dataprojectpsql',
        'USER': 'postgres',
        'PASSWORD': 'dataproject',
-       'HOST': '128.2.81.222',
-       # 'HOST': 'LOCALHOST',
+       #'HOST': '128.2.81.222',
+       'HOST': 'LOCALHOST',
        'PORT': '5432',
    },
 }
